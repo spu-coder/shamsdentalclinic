@@ -460,32 +460,7 @@ export type Database = {
       }
     }
     Views: {
-      booked_slots: {
-        Row: {
-          doctor_id: string | null
-          ends_at: string | null
-          starts_at: string | null
-        }
-        Insert: {
-          doctor_id?: string | null
-          ends_at?: string | null
-          starts_at?: string | null
-        }
-        Update: {
-          doctor_id?: string | null
-          ends_at?: string | null
-          starts_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "appointments_doctor_id_fkey"
-            columns: ["doctor_id"]
-            isOneToOne: false
-            referencedRelation: "doctors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       has_role: {
@@ -496,6 +471,13 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      taken_slots: {
+        Args: { _doctor_id: string; _from: string; _to: string }
+        Returns: {
+          ends_at: string
+          starts_at: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "doctor" | "staff" | "patient"
