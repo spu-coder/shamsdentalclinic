@@ -16,9 +16,9 @@ import { dayKey, getDaySlots, parseDayKey, timeAr } from "@/lib/booking";
 import { WEEKDAYS_AR } from "@/lib/clinic";
 
 export const Route = createFileRoute("/book")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    service: typeof search.service === "string" ? search.service : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { service?: string } =>
+    typeof search['service'] === "string" ? { service: search['service'] } : {},
+
   head: () => ({
     meta: [
       { title: "حجز موعد — عيادة شمس السنية التخصصية" },
