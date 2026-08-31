@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_emails: {
+        Row: {
+          created_at: string
+          email: string
+          label: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          label?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          label?: string | null
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           created_at: string
@@ -400,6 +418,63 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      visit_media: {
+        Row: {
+          caption: string | null
+          created_at: string
+          doctor_id: string | null
+          id: string
+          kind: string
+          patient_id: string
+          storage_path: string
+          taken_at: string
+          updated_at: string
+          uploaded_by: string | null
+          visit_id: string | null
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+          kind?: string
+          patient_id: string
+          storage_path: string
+          taken_at?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          visit_id?: string | null
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+          kind?: string
+          patient_id?: string
+          storage_path?: string
+          taken_at?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_media_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_media_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       visits: {
         Row: {
