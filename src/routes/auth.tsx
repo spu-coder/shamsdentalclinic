@@ -59,14 +59,20 @@ function AuthPage() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
-    if (error) return toast.error("بيانات الدخول غير صحيحة");
+    if (error) {
+      toast.error("بيانات الدخول غير صحيحة");
+      return;
+    }
     toast.success("مرحباً بك");
     navigate({ to: "/dashboard", replace: true });
   };
 
   const signUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) return toast.error("كلمة المرور 6 أحرف على الأقل");
+    if (password.length < 6) {
+      toast.error("كلمة المرور 6 أحرف على الأقل");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.auth.signUp({
       email,
@@ -77,7 +83,10 @@ function AuthPage() {
       },
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("تم إنشاء الحساب، تحقق من بريدك لتأكيد التسجيل");
   };
 

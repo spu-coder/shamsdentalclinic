@@ -95,7 +95,10 @@ function PatientDashboard() {
 
   const cancel = async (id: string) => {
     const { error } = await supabase.from("appointments").update({ status: "cancelled" }).eq("id", id);
-    if (error) return toast.error("تعذّر الإلغاء");
+    if (error) {
+      toast.error("تعذّر الإلغاء");
+      return;
+    }
     toast.success("تم إلغاء الموعد");
     void qc.invalidateQueries({ queryKey: ["my-appointments", uid] });
   };
@@ -185,7 +188,7 @@ function PatientDashboard() {
         </TabsContent>
 
         <TabsContent value="health">
-          <HealthForm patientId={uid} />
+          <HealthForm {...(uid ? { patientId: uid } : {})} />
         </TabsContent>
 
         <TabsContent value="archive" className="space-y-3">
