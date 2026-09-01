@@ -146,10 +146,14 @@ function PatientDashboard() {
           <TabsTrigger value="archive" className="gap-1">
             <FileText className="size-4" /> الأرشيف
           </TabsTrigger>
+          <TabsTrigger value="media" className="gap-1">
+            <Images className="size-4" /> صوري
+          </TabsTrigger>
           <TabsTrigger value="billing" className="gap-1">
             <Receipt className="size-4" /> الفواتير
           </TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="appts" className="space-y-3">
           {appointments.isLoading && <Skeleton className="h-24" />}
