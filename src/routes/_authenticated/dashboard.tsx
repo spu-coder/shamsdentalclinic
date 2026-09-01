@@ -218,6 +218,12 @@ function PatientDashboard() {
           ))}
         </TabsContent>
 
+        <TabsContent value="media">
+          {uid && <MediaGallery patientId={uid} canEdit={false} />}
+        </TabsContent>
+
+
+
         <TabsContent value="billing">
           <Card className="print-area">
             <CardHeader className="flex-row items-center justify-between">
