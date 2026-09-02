@@ -32,9 +32,48 @@ export const Route = createFileRoute("/")({
         content: "د. ياسر زكريا شمس الدين — حجز مواعيد إلكتروني وملف طبي لكل مريض.",
       },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Dentist",
+          name: "عيادة شمس السنية التخصصية",
+          alternateName: "SHAMS Dental Clinic",
+          description:
+            "عيادة أسنان تخصصية: جراحة الفم، تقويم، معالجات لبية ولثوية، تجميل وزراعة الأسنان.",
+          telephone: "+963959405017",
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: "عين منين – طريق حلبون – جانب صيدلية طحلة",
+            addressRegion: "ريف دمشق",
+            addressCountry: "SY",
+          },
+          medicalSpecialty: "Dentistry",
+          priceRange: "$$",
+          founder: { "@type": "Person", name: "د. ياسر زكريا شمس الدين" },
+          openingHoursSpecification: [
+            {
+              "@type": "OpeningHoursSpecification",
+              dayOfWeek: [
+                "Saturday",
+                "Sunday",
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+              ],
+              opens: "10:00",
+              closes: "18:00",
+            },
+          ],
+        }),
+      },
+    ],
   }),
   component: Home,
 });
+
 
 const features = [
   {
