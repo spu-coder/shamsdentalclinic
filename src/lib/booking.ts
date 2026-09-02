@@ -29,18 +29,20 @@ export async function getDaySlots(
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const [{ data: schedules }, { data: taken }, { data: offs }] = await Promise.all([
+  const [{ data: schedules }, taken, { data: offs }] = await Promise.all([
     supabase
       .from("doctor_schedules")
       .select("start_time,end_time,slot_minutes")
       .eq("doctor_id", doctorId)
       .eq("weekday", weekday)
       .eq("is_active", true),
-    supabase.rpc("taken_slots", {
-      _doctor_id: doctorId,
-      _from: dayStart.toISOString(),
-      _to: dayEnd.toISOString(),
-    }),
+    getTakenSlots({
+      data: {
+        doctorId,
+        from: dayStart.toISOString(),
+        to: dayEnd.toISOString(),
+      },
+    }).catch(() => [] as { starts_at: string; ends_at: string }[]),
     supabase
       .from("time_off")
       .select("starts_at,ends_at")
