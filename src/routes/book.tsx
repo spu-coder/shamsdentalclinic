@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { dayKey, getDaySlots, parseDayKey, timeAr } from "@/lib/booking";
-import { WEEKDAYS_AR } from "@/lib/clinic";
+import { WEEKDAYS_AR, formatMoney } from "@/lib/clinic";
 
 export const Route = createFileRoute("/book")({
   validateSearch: (search: Record<string, unknown>): { service?: string } =>
@@ -71,16 +71,30 @@ function BookPage() {
     },
   });
 
+  // قائمة الخدمات وأسعارها الخاصة بالطبيب المختار
   const services = useQuery({
-    queryKey: ["services"],
+    queryKey: ["doctor-service-options", doctorId],
+    enabled: Boolean(doctorId),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("services")
-        .select("id,name,duration_min,price,category")
-        .eq("is_active", true)
-        .order("sort_order");
+        .from("doctor_services")
+        .select("service_id,price,duration_min,services(id,name,category,is_active)")
+        .eq("doctor_id", doctorId)
+        .eq("is_active", true);
       if (error) throw error;
-      return data;
+      return (data ?? [])
+        .filter((r) => (r.services as { is_active: boolean } | null)?.is_active)
+        .map((r) => {
+          const svc = r.services as unknown as { id: string; name: string; category: string | null };
+          return {
+            id: r.service_id,
+            name: svc.name,
+            category: svc.category,
+            price: r.price == null ? null : Number(r.price),
+            duration_min: r.duration_min,
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name, "ar"));
     },
   });
 
@@ -88,10 +102,17 @@ function BookPage() {
     if (!doctorId && doctors.data?.[0]) setDoctorId(doctors.data[0].id);
   }, [doctors.data, doctorId]);
 
-  const duration = useMemo(
-    () => services.data?.find((s) => s.id === serviceId)?.duration_min ?? 30,
+  // إن لم يقدّم الطبيب المختار الخدمة المحددة، نُفرغ الاختيار
+  useEffect(() => {
+    if (!serviceId || !services.data) return;
+    if (!services.data.some((s) => s.id === serviceId)) setServiceId("");
+  }, [services.data, serviceId]);
+
+  const selectedService = useMemo(
+    () => services.data?.find((s) => s.id === serviceId) ?? null,
     [services.data, serviceId],
   );
+  const duration = selectedService?.duration_min ?? 30;
 
   const slots = useQuery({
     queryKey: ["slots", doctorId, day, duration, user?.id ?? "anon"],
@@ -185,10 +206,21 @@ function BookPage() {
                   {(services.data ?? []).map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name} — {s.duration_min} د
+                      {s.price != null ? ` — ${formatMoney(s.price)}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {services.data && services.data.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  لا توجد خدمات مُسعّرة لهذا الطبيب بعد.
+                </p>
+              )}
+              {selectedService?.price != null && (
+                <p className="text-xs text-primary">
+                  أجر الطبيب لهذه الخدمة: {formatMoney(selectedService.price)}
+                </p>
+              )}
             </div>
           </div>
 
