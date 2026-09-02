@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const PATHS = ["/", "/services", "/team", "/book", "/contact", "/m", "/auth"];
 
-export const Route = createFileRoute("/api/public/sitemap.xml")({
+export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: ({ request }) => {
