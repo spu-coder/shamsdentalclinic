@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { ReportPrint } from "@/components/print/ReportPrint";
 import { CLINIC, STATUS_AR, formatMoney } from "@/lib/clinic";
 
 export const Route = createFileRoute("/_authenticated/reports")({
@@ -50,6 +51,7 @@ function ReportsPage() {
   const [from, setFrom] = useState(monthAgo());
   const [to, setTo] = useState(today());
   const [term, setTerm] = useState("");
+  const [printOpen, setPrintOpen] = useState(false);
 
   const fromIso = `${from}T00:00:00.000Z`;
   const toIso = `${to}T23:59:59.999Z`;
@@ -147,8 +149,8 @@ function ReportsPage() {
             <Label className="text-xs">إلى</Label>
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
-          <Button size="sm" variant="outline" onClick={() => window.print()}>
-            <Printer className="size-4" /> طباعة
+          <Button size="sm" variant="outline" onClick={() => setPrintOpen(true)}>
+            <Printer className="size-4" /> تقرير رسمي للطباعة
           </Button>
         </div>
       </header>
@@ -312,6 +314,66 @@ function ReportsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ReportPrint
+        open={printOpen}
+        onClose={() => setPrintOpen(false)}
+        title="تقرير العيادة الشامل"
+        subtitle={`الفترة من ${from} إلى ${to}`}
+        summary={[
+          { label: "إجمالي الفواتير", value: formatMoney(money.total) },
+          { label: "المحصّل", value: formatMoney(money.paid) },
+          { label: "المتبقي", value: formatMoney(money.due) },
+        ]}
+        sections={[
+          {
+            title: "التقرير المالي",
+            head: ["المريض", "الوصف", "التاريخ", "الصافي", "المدفوع", "المتبقي"],
+            rows: (invoices.data ?? []).map((inv) => {
+              const paid = (inv.payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
+              const net = Number(inv.total) - Number(inv.discount);
+              return [
+                inv.profiles?.full_name ?? "مريض",
+                inv.description ?? "فاتورة معالجة",
+                new Date(inv.issued_at).toLocaleDateString("ar-SY"),
+                formatMoney(net),
+                formatMoney(paid),
+                formatMoney(net - paid),
+              ];
+            }),
+          },
+          {
+            title: "تقرير المواعيد",
+            head: ["المريض", "الطبيب", "التاريخ", "الحالة"],
+            rows: (appointments.data ?? []).map((a) => [
+              a.profiles?.full_name ?? "مريض",
+              a.doctors?.name ?? "—",
+              new Date(a.starts_at).toLocaleDateString("ar-SY"),
+              STATUS_AR[a.status] ?? a.status,
+            ]),
+          },
+          {
+            title: "تقرير الصحة العامة للمرضى",
+            head: ["المريض", "الزمرة", "أمراض مزمنة", "حساسية", "تنبيهات"],
+            rows: healthRows.map((h) => [
+              h.profiles?.full_name ?? "مريض",
+              h.blood_type ?? "—",
+              h.chronic_diseases ?? "—",
+              h.allergies ?? "—",
+              [
+                h.diabetes ? "سكري" : null,
+                h.hypertension ? "ضغط" : null,
+                h.heart_disease ? "قلب" : null,
+                h.bleeding_disorder ? "نزف" : null,
+                h.pregnant ? "حمل" : null,
+                h.smoker ? "تدخين" : null,
+              ]
+                .filter(Boolean)
+                .join("، ") || "—",
+            ]),
+          },
+        ]}
+      />
     </div>
   );
 }
