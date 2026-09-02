@@ -330,6 +330,8 @@ type AdminAppointment = {
 function DoctorsManager({ canEdit }: { canEdit: boolean }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({ name: "", title: "د.", specialty: "", bio: "" });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [edit, setEdit] = useState({ name: "", title: "", specialty: "", bio: "", photo_url: "" });
 
   const doctors = useQuery({
     queryKey: ["admin-doctors"],
@@ -339,6 +341,11 @@ function DoctorsManager({ canEdit }: { canEdit: boolean }) {
       return data;
     },
   });
+
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: ["admin-doctors"] });
+    void qc.invalidateQueries({ queryKey: ["doctors"] });
+  };
 
   const add = async () => {
     if (!form.name.trim()) return;
@@ -354,7 +361,7 @@ function DoctorsManager({ canEdit }: { canEdit: boolean }) {
     }
     setForm({ name: "", title: "د.", specialty: "", bio: "" });
     toast.success("تمت إضافة الطبيب");
-    void qc.invalidateQueries({ queryKey: ["admin-doctors"] });
+    refresh();
   };
 
   const toggle = async (id: string, is_active: boolean) => {
@@ -363,7 +370,51 @@ function DoctorsManager({ canEdit }: { canEdit: boolean }) {
       toast.error("تعذّر التحديث");
       return;
     }
-    void qc.invalidateQueries({ queryKey: ["admin-doctors"] });
+    refresh();
+  };
+
+  const startEdit = (d: { id: string; name: string; title: string | null; specialty: string | null; bio: string | null; photo_url: string | null }) => {
+    setEditId(d.id);
+    setEdit({
+      name: d.name ?? "",
+      title: d.title ?? "",
+      specialty: d.specialty ?? "",
+      bio: d.bio ?? "",
+      photo_url: d.photo_url ?? "",
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editId || !edit.name.trim()) return;
+    const { error } = await supabase
+      .from("doctors")
+      .update({
+        name: edit.name.trim().slice(0, 120),
+        title: edit.title.trim().slice(0, 60) || null,
+        specialty: edit.specialty.trim().slice(0, 120) || null,
+        bio: edit.bio.trim().slice(0, 600) || null,
+        photo_url: edit.photo_url.trim().slice(0, 400) || null,
+      })
+      .eq("id", editId);
+    if (error) {
+      toast.error("تعذّر حفظ التعديل");
+      return;
+    }
+    toast.success("تم حفظ معلومات الطبيب");
+    setEditId(null);
+    refresh();
+  };
+
+  const remove = async (id: string, name: string) => {
+    if (!window.confirm(`حذف الطبيب «${name}» نهائياً؟ لا يمكن الحذف إذا كانت له مواعيد أو زيارات مسجّلة.`)) return;
+    const { error } = await supabase.from("doctors").delete().eq("id", id);
+    if (error) {
+      toast.error("تعذّر الحذف — للطبيب سجلات مرتبطة. يمكنك إلغاء تنشيطه بدلاً من الحذف.");
+      return;
+    }
+    toast.success("تم حذف الطبيب");
+    if (editId === id) setEditId(null);
+    refresh();
   };
 
   return (
@@ -373,15 +424,60 @@ function DoctorsManager({ canEdit }: { canEdit: boolean }) {
       </CardHeader>
       <CardContent className="space-y-4">
         {(doctors.data ?? []).map((d) => (
-          <div key={d.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-            <div>
-              <p className="font-medium">
-                {d.title} {d.name}
-              </p>
-              <p className="text-xs text-muted-foreground">{d.specialty ?? "—"}</p>
+          <div key={d.id} className="space-y-3 rounded-lg border p-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-medium">
+                  {d.title} {d.name}
+                </p>
+                <p className="text-xs text-muted-foreground">{d.specialty ?? "—"}</p>
+              </div>
+              {canEdit && (
+                <div className="flex items-center gap-2">
+                  <Switch checked={d.is_active} onCheckedChange={(v) => void toggle(d.id, v)} />
+                  <Button size="sm" variant="outline" onClick={() => (editId === d.id ? setEditId(null) : startEdit(d))}>
+                    {editId === d.id ? "إغلاق" : "تعديل"}
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => void remove(d.id, d.name)}>
+                    حذف
+                  </Button>
+                </div>
+              )}
             </div>
-            {canEdit && (
-              <Switch checked={d.is_active} onCheckedChange={(v) => void toggle(d.id, v)} />
+            {canEdit && editId === d.id && (
+              <div className="space-y-3 rounded-lg bg-muted/40 p-3">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label>اللقب</Label>
+                    <Input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>الاسم</Label>
+                    <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>الاختصاص</Label>
+                    <Input value={edit.specialty} onChange={(e) => setEdit({ ...edit, specialty: e.target.value })} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>رابط الصورة</Label>
+                  <Input value={edit.photo_url} onChange={(e) => setEdit({ ...edit, photo_url: e.target.value })} />
+                </div>
+                <Textarea
+                  placeholder="نبذة"
+                  value={edit.bio}
+                  onChange={(e) => setEdit({ ...edit, bio: e.target.value })}
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => void saveEdit()}>
+                    حفظ التعديل
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                    إلغاء
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         ))}
@@ -418,6 +514,7 @@ function DoctorsManager({ canEdit }: { canEdit: boolean }) {
     </Card>
   );
 }
+
 
 type ServiceRow = {
   id: string;
