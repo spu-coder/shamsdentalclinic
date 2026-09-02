@@ -410,6 +410,7 @@ type ApptRow = {
 type HealthRow = {
   patient_id: string;
   blood_type: string | null;
+  chronic_diseases: string | null;
   allergies: string | null;
   medications: string | null;
   diabetes: boolean;

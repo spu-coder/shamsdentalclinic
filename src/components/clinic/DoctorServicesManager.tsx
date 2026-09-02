@@ -24,7 +24,7 @@ export function DoctorServicesManager({
 }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string>(lockedDoctorId ?? "");
-  const doctorId = lockedDoctorId ?? selected || doctors[0]?.id ?? "";
+  const doctorId = lockedDoctorId ?? (selected || doctors[0]?.id || "");
 
   const services = useQuery({
     queryKey: ["ds-services"],
