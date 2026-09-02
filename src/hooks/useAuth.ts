@@ -8,6 +8,7 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
+  const [doctorId, setDoctorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,11 +16,19 @@ export function useAuth() {
 
     const loadRoles = async (uid: string | undefined) => {
       if (!uid) {
-        if (active) setRoles([]);
+        if (active) {
+          setRoles([]);
+          setDoctorId(null);
+        }
         return;
       }
-      const { data } = await supabase.from("user_roles").select("role").eq("user_id", uid);
-      if (active) setRoles((data ?? []).map((r) => r.role as AppRole));
+      const [{ data: roleRows }, { data: doctorRow }] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", uid),
+        supabase.from("doctors").select("id").eq("profile_id", uid).maybeSingle(),
+      ]);
+      if (!active) return;
+      setRoles((roleRows ?? []).map((r) => r.role as AppRole));
+      setDoctorId(doctorRow?.id ?? null);
     };
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
@@ -42,7 +51,21 @@ export function useAuth() {
     };
   }, []);
 
+  const isAdmin = roles.includes("admin");
   const isStaff = roles.some((r) => r === "admin" || r === "doctor" || r === "staff");
+  const isDoctor = roles.includes("doctor");
 
-  return { session, user, roles, isStaff, isAdmin: roles.includes("admin"), loading };
+  return {
+    session,
+    user,
+    roles,
+    isStaff,
+    isAdmin,
+    isDoctor,
+    /** معرّف الطبيب المرتبط بالحساب (إن وجد) */
+    doctorId,
+    /** طبيب فقط بدون صلاحية إدارة: يرى مواعيده ومرضاه حصراً */
+    isDoctorOnly: isDoctor && !isAdmin,
+    loading,
+  };
 }
