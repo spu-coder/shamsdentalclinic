@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Save, Search, Trash2 } from "lucide-react";
+import { Plus, Printer, Save, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { InvoicePrint } from "@/components/print/InvoicePrint";
 import { formatDateTimeAr, formatMoney } from "@/lib/clinic";
 
 export const Route = createFileRoute("/_authenticated/billing")({
@@ -42,6 +43,7 @@ type Invoice = {
   issued_at: string;
   payments: Payment[] | null;
   profiles: { full_name: string | null; phone: string | null } | null;
+  doctors: { name: string; title: string | null } | null;
 };
 
 function BillingPage() {
@@ -56,7 +58,7 @@ function BillingPage() {
       const { data, error } = await supabase
         .from("invoices")
         .select(
-          "id,patient_id,description,total,discount,issued_at, payments(id,amount,method,paid_at), profiles:patient_id(full_name,phone)",
+          "id,patient_id,description,total,discount,issued_at, payments(id,amount,method,paid_at), profiles:patient_id(full_name,phone), doctors(name,title)",
         )
         .order("issued_at", { ascending: false })
         .limit(300);
@@ -171,6 +173,7 @@ function InvoiceRow({ invoice, onChanged }: { invoice: Invoice; onChanged: () =>
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("نقداً");
   const [busy, setBusy] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const payments = invoice.payments ?? [];
   const paid = payments.reduce((s, p) => s + Number(p.amount), 0);
@@ -272,6 +275,9 @@ function InvoiceRow({ invoice, onChanged }: { invoice: Invoice; onChanged: () =>
           <Button size="sm" disabled={busy} onClick={() => void saveInvoice()}>
             <Save className="size-4" /> حفظ الفاتورة
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setPrinting(true)}>
+            <Printer className="size-4" /> فاتورة رسمية
+          </Button>
         </div>
 
         <div className="rounded-lg border border-border/70 p-3">
@@ -320,6 +326,26 @@ function InvoiceRow({ invoice, onChanged }: { invoice: Invoice; onChanged: () =>
           </div>
         </div>
       </CardContent>
+
+      <InvoicePrint
+        open={printing}
+        onClose={() => setPrinting(false)}
+        invoice={{
+          id: invoice.id,
+          description: desc,
+          total: Number(total) || 0,
+          discount: Number(discount) || 0,
+          issued_at: invoice.issued_at,
+          patient: invoice.profiles,
+          doctor: invoice.doctors,
+          payments: payments.map((p) => ({
+            id: p.id,
+            amount: Number(p.amount),
+            method: p.method,
+            paid_at: p.paid_at,
+          })),
+        }}
+      />
     </Card>
   );
 }
