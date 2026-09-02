@@ -20,6 +20,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { HealthForm } from "@/components/clinic/HealthForm";
 import { MediaGallery } from "@/components/clinic/MediaGallery";
+import { ProfileForm } from "@/components/clinic/ProfileForm";
 import { CLINIC, formatMoney } from "@/lib/clinic";
 
 type Doctor = { id: string; name: string; title: string | null };
@@ -105,6 +106,7 @@ export function PatientFile({
           <TabsTrigger value="media">الصور</TabsTrigger>
           <TabsTrigger value="health">الملف الصحي</TabsTrigger>
           <TabsTrigger value="billing">الفواتير والدفعات</TabsTrigger>
+          <TabsTrigger value="info">المعلومات الشخصية</TabsTrigger>
         </TabsList>
 
         <TabsContent value="visits" className="space-y-4">
@@ -155,6 +157,10 @@ export function PatientFile({
             {...(staffId ? { uploaderId: staffId } : {})}
             visits={(visits.data ?? []).map((v) => ({ id: v.id, visit_date: v.visit_date }))}
           />
+        </TabsContent>
+
+        <TabsContent value="info">
+          <ProfileForm userId={patientId} title="تعديل معلومات المريض" />
         </TabsContent>
 
         <TabsContent value="health">

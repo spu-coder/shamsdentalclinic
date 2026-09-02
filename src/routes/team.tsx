@@ -6,8 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Reveal } from "@/components/site/Reveal";
 import { supabase } from "@/integrations/supabase/client";
-import { Stars, useDoctorRatings } from "@/components/clinic/Reviews";
-import { formatMoney } from "@/lib/clinic";
 
 export const Route = createFileRoute("/team")({
   head: () => ({
@@ -25,34 +23,12 @@ export const Route = createFileRoute("/team")({
 });
 
 function TeamPage() {
-  const ratings = useDoctorRatings();
-  const offers = useQuery({
-    queryKey: ["doctor-offers"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("doctor_services")
-        .select("doctor_id,price,services(name)")
-        .eq("is_active", true);
-      if (error) throw error;
-      const map: Record<string, { name: string; price: number | null }[]> = {};
-      (data ?? []).forEach((r) => {
-        const name = (r.services as unknown as { name: string } | null)?.name;
-        if (!name) return;
-        map[r.doctor_id] = [
-          ...(map[r.doctor_id] ?? []),
-          { name, price: r.price == null ? null : Number(r.price) },
-        ];
-      });
-      return map;
-    },
-  });
-
   const { data, isLoading } = useQuery({
     queryKey: ["doctors"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("doctors")
-        .select("*")
+        .select("id,name,title,specialty")
         .eq("is_active", true)
         .order("sort_order");
       if (error) throw error;
@@ -84,31 +60,6 @@ function TeamPage() {
                     <p className="text-sm text-primary">{d.specialty}</p>
                   </div>
                 </div>
-                {(() => {
-                  const r = ratings.data?.[d.id];
-                  return r ? (
-                    <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                      <Stars value={r.avg} />
-                      {r.avg.toFixed(1)} من 5 ({r.count} تقييم)
-                    </p>
-                  ) : (
-                    <p className="mt-3 text-xs text-muted-foreground">لا توجد تقييمات بعد</p>
-                  );
-                })()}
-                {d.bio && <p className="mt-4 text-sm text-muted-foreground">{d.bio}</p>}
-                {(offers.data?.[d.id] ?? []).length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-xs font-semibold">الخدمات وأجورها عند هذا الطبيب</p>
-                    <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                      {(offers.data?.[d.id] ?? []).slice(0, 6).map((o) => (
-                        <li key={o.name} className="flex justify-between gap-2">
-                          <span>{o.name}</span>
-                          <span>{o.price == null ? "حسب الحالة" : formatMoney(o.price)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </Reveal>
