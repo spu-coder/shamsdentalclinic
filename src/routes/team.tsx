@@ -62,31 +62,6 @@ function TeamPage() {
                     <p className="text-sm text-primary">{d.specialty}</p>
                   </div>
                 </div>
-                {(() => {
-                  const r = ratings.data?.[d.id];
-                  return r ? (
-                    <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                      <Stars value={r.avg} />
-                      {r.avg.toFixed(1)} من 5 ({r.count} تقييم)
-                    </p>
-                  ) : (
-                    <p className="mt-3 text-xs text-muted-foreground">لا توجد تقييمات بعد</p>
-                  );
-                })()}
-                {d.bio && <p className="mt-4 text-sm text-muted-foreground">{d.bio}</p>}
-                {(offers.data?.[d.id] ?? []).length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-xs font-semibold">الخدمات وأجورها عند هذا الطبيب</p>
-                    <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                      {(offers.data?.[d.id] ?? []).slice(0, 6).map((o) => (
-                        <li key={o.name} className="flex justify-between gap-2">
-                          <span>{o.name}</span>
-                          <span>{o.price == null ? "حسب الحالة" : formatMoney(o.price)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </Reveal>
