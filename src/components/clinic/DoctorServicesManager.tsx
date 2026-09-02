@@ -87,7 +87,9 @@ export function DoctorServicesManager({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">تسعير الخدمات لكل طبيب</CardTitle>
+        <CardTitle className="text-base">
+          {lockedDoctorId ? "خدماتي وأجوري (تعديل خاص بي فقط)" : "تسعير الخدمات لكل طبيب"}
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {!lockedDoctorId && (
