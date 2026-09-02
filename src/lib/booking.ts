@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getTakenSlots } from "@/lib/availability.functions";
 
 export type Slot = { start: Date; end: Date; taken: boolean };
 
@@ -51,8 +52,8 @@ export async function getDaySlots(
       .gt("ends_at", dayStart.toISOString()),
   ]);
 
-  const takenSet = new Set((taken ?? []).map((t) => new Date(t.starts_at).getTime()));
-  const offRanges = (offs ?? []).map((o) => [
+  const takenSet = new Set(taken.map((t) => new Date(t.starts_at).getTime()));
+  const offRanges: [number, number][] = (offs ?? []).map((o) => [
     new Date(o.starts_at).getTime(),
     new Date(o.ends_at).getTime(),
   ]);
@@ -66,7 +67,7 @@ export async function getDaySlots(
     while (cursor.getTime() + step * 60000 <= end.getTime()) {
       const slotEnd = new Date(cursor.getTime() + step * 60000);
       const inOff = offRanges.some(
-        ([a, b]) => cursor.getTime() < (b as number) && slotEnd.getTime() > (a as number),
+        ([a, b]) => cursor.getTime() < b && slotEnd.getTime() > a,
       );
       if (cursor.getTime() > now && !inOff) {
         slots.push({
