@@ -25,34 +25,12 @@ export const Route = createFileRoute("/team")({
 });
 
 function TeamPage() {
-  const ratings = useDoctorRatings();
-  const offers = useQuery({
-    queryKey: ["doctor-offers"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("doctor_services")
-        .select("doctor_id,price,services(name)")
-        .eq("is_active", true);
-      if (error) throw error;
-      const map: Record<string, { name: string; price: number | null }[]> = {};
-      (data ?? []).forEach((r) => {
-        const name = (r.services as unknown as { name: string } | null)?.name;
-        if (!name) return;
-        map[r.doctor_id] = [
-          ...(map[r.doctor_id] ?? []),
-          { name, price: r.price == null ? null : Number(r.price) },
-        ];
-      });
-      return map;
-    },
-  });
-
   const { data, isLoading } = useQuery({
     queryKey: ["doctors"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("doctors")
-        .select("*")
+        .select("id,name,title,specialty")
         .eq("is_active", true)
         .order("sort_order");
       if (error) throw error;
