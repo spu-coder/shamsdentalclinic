@@ -132,9 +132,14 @@ function AdminPanel() {
             إدارة المواعيد وملفات المرضى والصور والفواتير.
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link to="/reports">التقارير</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/billing">الفواتير والمدفوعات</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/reports">التقارير</Link>
+          </Button>
+        </div>
       </header>
 
       <Tabs defaultValue="appts">

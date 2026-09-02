@@ -12,9 +12,11 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Header } from "@/components/site/Header";
+import { MobileQuickBar } from "@/components/site/MobileQuickBar";
 import { Footer } from "@/components/site/Footer";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureAccountSetup } from "@/lib/account.functions";
 
 function NotFoundComponent() {
   return (
@@ -131,6 +133,9 @@ function RootComponent() {
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      if (event === "SIGNED_IN") {
+        void ensureAccountSetup().catch(() => undefined);
+      }
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
@@ -146,6 +151,7 @@ function RootComponent() {
           <Outlet />
         </main>
         <Footer />
+        <MobileQuickBar />
       </div>
       <Toaster position="top-center" richColors />
     </QueryClientProvider>

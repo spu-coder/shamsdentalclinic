@@ -49,13 +49,6 @@ export function Header() {
           {isStaff ? "لوحة العيادة" : "حسابي"}
         </Link>
       )}
-      <Link
-        to="/m"
-        onClick={() => setOpen(false)}
-        className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground md:hidden"
-      >
-        خدمة سريعة من الهاتف
-      </Link>
       {mobile && (
 
         <div className="mt-4 flex flex-col gap-2">
