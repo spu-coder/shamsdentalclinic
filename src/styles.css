@@ -252,9 +252,8 @@
     background: #fff !important;
   }
 
-  .print-overlay ~ * ,
-  body > div:not(:has(.print-overlay)) {
-    display: revert;
+  body.printing > *:not(.print-overlay) {
+    display: none !important;
   }
 
   .print-area {

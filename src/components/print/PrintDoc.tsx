@@ -29,8 +29,10 @@ export function PrintDoc({
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.classList.add("printing");
     return () => {
       document.body.style.overflow = prev;
+      document.body.classList.remove("printing");
     };
   }, [open]);
 
