@@ -249,22 +249,39 @@ function PatientDashboard() {
               {(invoices.data ?? []).map((inv) => {
                 const paid = (inv.payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
                 const net = Number(inv.total) - Number(inv.discount);
+                const list = (inv.payments ?? [])
+                  .slice()
+                  .sort((a, b) => +new Date(a.paid_at) - +new Date(b.paid_at));
                 return (
-                  <div
-                    key={inv.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm"
-                  >
-                    <div>
-                      <p className="font-medium">{inv.description ?? "فاتورة معالجة"}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(inv.issued_at).toLocaleDateString("ar-SY")}
-                      </p>
+                  <div key={inv.id} className="space-y-2 rounded-lg border p-3 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{inv.description ?? "فاتورة معالجة"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(inv.issued_at).toLocaleDateString("ar-SY")}
+                        </p>
+                      </div>
+                      <div className="text-xs">
+                        <p>الإجمالي: {formatMoney(net)}</p>
+                        <p className="text-primary">المدفوع: {formatMoney(paid)}</p>
+                        <p className="font-semibold">المتبقي: {formatMoney(net - paid)}</p>
+                      </div>
+                      <Badge variant={net - paid <= 0 ? "default" : "secondary"}>
+                        {net - paid <= 0 ? "مسدّدة" : "قيد التسديد"}
+                      </Badge>
                     </div>
-                    <div className="text-xs">
-                      <p>الإجمالي: {formatMoney(net)}</p>
-                      <p className="text-primary">المدفوع: {formatMoney(paid)}</p>
-                      <p className="font-semibold">المتبقي: {formatMoney(net - paid)}</p>
-                    </div>
+                    {list.length > 0 && (
+                      <ul className="space-y-1 rounded-lg bg-muted/60 p-2 text-xs">
+                        {list.map((p, i) => (
+                          <li key={`${inv.id}-${i}`} className="flex items-center justify-between gap-2">
+                            <span>
+                              {new Date(p.paid_at).toLocaleDateString("ar-SY")} — {p.method ?? "دفعة"}
+                            </span>
+                            <span>{formatMoney(Number(p.amount))}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 );
               })}
