@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getTakenSlots } from "@/lib/availability.functions";
 
 export type Slot = { start: Date; end: Date; taken: boolean };
 
@@ -29,18 +30,20 @@ export async function getDaySlots(
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const [{ data: schedules }, { data: taken }, { data: offs }] = await Promise.all([
+  const [{ data: schedules }, taken, { data: offs }] = await Promise.all([
     supabase
       .from("doctor_schedules")
       .select("start_time,end_time,slot_minutes")
       .eq("doctor_id", doctorId)
       .eq("weekday", weekday)
       .eq("is_active", true),
-    supabase.rpc("taken_slots", {
-      _doctor_id: doctorId,
-      _from: dayStart.toISOString(),
-      _to: dayEnd.toISOString(),
-    }),
+    getTakenSlots({
+      data: {
+        doctorId,
+        from: dayStart.toISOString(),
+        to: dayEnd.toISOString(),
+      },
+    }).catch(() => [] as { starts_at: string; ends_at: string }[]),
     supabase
       .from("time_off")
       .select("starts_at,ends_at")
@@ -49,8 +52,8 @@ export async function getDaySlots(
       .gt("ends_at", dayStart.toISOString()),
   ]);
 
-  const takenSet = new Set((taken ?? []).map((t) => new Date(t.starts_at).getTime()));
-  const offRanges = (offs ?? []).map((o) => [
+  const takenSet = new Set(taken.map((t) => new Date(t.starts_at).getTime()));
+  const offRanges: [number, number][] = (offs ?? []).map((o) => [
     new Date(o.starts_at).getTime(),
     new Date(o.ends_at).getTime(),
   ]);
@@ -64,7 +67,7 @@ export async function getDaySlots(
     while (cursor.getTime() + step * 60000 <= end.getTime()) {
       const slotEnd = new Date(cursor.getTime() + step * 60000);
       const inOff = offRanges.some(
-        ([a, b]) => cursor.getTime() < (b as number) && slotEnd.getTime() > (a as number),
+        ([a, b]) => cursor.getTime() < b && slotEnd.getTime() > a,
       );
       if (cursor.getTime() > now && !inOff) {
         slots.push({
