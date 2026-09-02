@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarDays, FileText, HeartPulse, Images, Printer, Receipt } from "lucide-react";
+import { CalendarDays, FileText, HeartPulse, Images, Printer, Receipt, Star, UserCog } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { HealthForm } from "@/components/clinic/HealthForm";
 import { MediaGallery } from "@/components/clinic/MediaGallery";
+import { ProfileForm } from "@/components/clinic/ProfileForm";
+import { ReviewForm } from "@/components/clinic/Reviews";
+import { InvoicePrint, type PrintInvoice } from "@/components/print/InvoicePrint";
 import { CLINIC, STATUS_AR, formatDateTimeAr, formatMoney } from "@/lib/clinic";
 
 
@@ -39,6 +43,7 @@ function PatientDashboard() {
   const { user, isStaff } = useAuth();
   const qc = useQueryClient();
   const uid = user?.id;
+  const [printInvoice, setPrintInvoice] = useState<PrintInvoice | null>(null);
 
   const profile = useQuery({
     queryKey: ["my-profile", uid],
@@ -55,7 +60,7 @@ function PatientDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("appointments")
-        .select("*, doctors(name,title), services(name)")
+        .select("*, doctors(id,name,title), services(name)")
         .eq("patient_id", uid!)
         .order("starts_at", { ascending: false });
       if (error) throw error;
@@ -83,7 +88,7 @@ function PatientDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
-        .select("*, payments(amount,paid_at,method)")
+        .select("*, doctors(name,title), payments(id,amount,paid_at,method)")
         .eq("patient_id", uid!)
         .order("issued_at", { ascending: false });
       if (error) throw error;
@@ -152,6 +157,9 @@ function PatientDashboard() {
           <TabsTrigger value="billing" className="gap-1">
             <Receipt className="size-4" /> الفواتير
           </TabsTrigger>
+          <TabsTrigger value="profile" className="gap-1">
+            <UserCog className="size-4" /> ملفي الشخصي
+          </TabsTrigger>
         </TabsList>
 
 
@@ -184,9 +192,26 @@ function PatientDashboard() {
                       </Button>
                     )}
                 </div>
+                {a.status === "completed" && uid && a.doctors?.id && (
+                  <div className="w-full">
+                    <ReviewForm
+                      patientId={uid}
+                      doctorId={a.doctors.id}
+                      appointmentId={a.id}
+                      doctorName={`${a.doctors.title ?? ""} ${a.doctors.name}`}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
+          <p className="flex items-center justify-center gap-1 pt-2 text-xs text-muted-foreground">
+            <Star className="size-3" /> يمكنك تقييم الطبيب بعد اكتمال الموعد.
+          </p>
+        </TabsContent>
+
+        <TabsContent value="profile">
+          {uid && <ProfileForm userId={uid} />}
         </TabsContent>
 
         <TabsContent value="health">
@@ -266,9 +291,38 @@ function PatientDashboard() {
                         <p className="text-primary">المدفوع: {formatMoney(paid)}</p>
                         <p className="font-semibold">المتبقي: {formatMoney(net - paid)}</p>
                       </div>
-                      <Badge variant={net - paid <= 0 ? "default" : "secondary"}>
-                        {net - paid <= 0 ? "مسدّدة" : "قيد التسديد"}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={net - paid <= 0 ? "default" : "secondary"}>
+                          {net - paid <= 0 ? "مسدّدة" : "قيد التسديد"}
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="no-print"
+                          onClick={() =>
+                            setPrintInvoice({
+                              id: inv.id,
+                              description: inv.description,
+                              total: Number(inv.total),
+                              discount: Number(inv.discount),
+                              issued_at: inv.issued_at,
+                              patient: {
+                                full_name: profile.data?.full_name ?? null,
+                                phone: profile.data?.phone ?? null,
+                              },
+                              doctor: (inv as unknown as { doctors: { name: string; title: string | null } | null }).doctors,
+                              payments: list.map((p, idx) => ({
+                                id: `${inv.id}-${idx}`,
+                                amount: Number(p.amount),
+                                method: p.method,
+                                paid_at: p.paid_at,
+                              })),
+                            })
+                          }
+                        >
+                          <Printer className="size-4" /> فاتورة رسمية
+                        </Button>
+                      </div>
                     </div>
                     {list.length > 0 && (
                       <ul className="space-y-1 rounded-lg bg-muted/60 p-2 text-xs">
@@ -295,6 +349,12 @@ function PatientDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <InvoicePrint
+        invoice={printInvoice}
+        open={printInvoice !== null}
+        onClose={() => setPrintInvoice(null)}
+      />
     </div>
   );
 }
