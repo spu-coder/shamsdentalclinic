@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CalendarCheck, Search, Stethoscope, Users } from "lucide-react";
+import { CalendarCheck, Search, Star, Stethoscope, UserCog, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PatientFile } from "@/components/clinic/PatientFile";
+import { ProfileForm } from "@/components/clinic/ProfileForm";
+import { DoctorServicesManager } from "@/components/clinic/DoctorServicesManager";
+import { ReviewsModeration } from "@/components/clinic/Reviews";
 import { STATUS_AR, WEEKDAYS_AR, formatDateTimeAr, formatMoney } from "@/lib/clinic";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -31,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 function AdminPanel() {
-  const { user, isStaff, isAdmin, loading } = useAuth();
+  const { user, isStaff, isAdmin, isDoctorOnly, doctorId, loading } = useAuth();
   const qc = useQueryClient();
   const [patientId, setPatientId] = useState<string | null>(null);
   const [term, setTerm] = useState("");
@@ -50,23 +53,44 @@ function AdminPanel() {
   });
 
   const appointments = useQuery({
-    queryKey: ["admin-appointments"],
-    enabled: isStaff,
+    queryKey: ["admin-appointments", isDoctorOnly ? doctorId : "all"],
+    enabled: isStaff && (!isDoctorOnly || Boolean(doctorId)),
     queryFn: async () => {
-      const { data, error } = await supabase
+      // الطبيب يرى مواعيده فقط ولا يقرر عن طبيب آخر
+      let q = supabase
         .from("appointments")
         .select("*, doctors(name,title), services(name), profiles:patient_id(full_name,phone)")
         .order("starts_at", { ascending: false })
         .limit(200);
+      if (isDoctorOnly && doctorId) q = q.eq("doctor_id", doctorId);
+      const { data, error } = await q;
       if (error) throw error;
       return data as unknown as AdminAppointment[];
     },
   });
 
   const patients = useQuery({
-    queryKey: ["admin-patients"],
-    enabled: isStaff,
+    queryKey: ["admin-patients", isDoctorOnly ? doctorId : "all"],
+    enabled: isStaff && (!isDoctorOnly || Boolean(doctorId)),
     queryFn: async () => {
+      // الطبيب يرى مرضاه فقط
+      if (isDoctorOnly && doctorId) {
+        const [appts, visits] = await Promise.all([
+          supabase.from("appointments").select("patient_id").eq("doctor_id", doctorId),
+          supabase.from("visits").select("patient_id").eq("doctor_id", doctorId),
+        ]);
+        const ids = Array.from(
+          new Set([...(appts.data ?? []), ...(visits.data ?? [])].map((r) => r.patient_id)),
+        );
+        if (ids.length === 0) return [];
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id,full_name,phone,created_at")
+          .in("id", ids)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return data;
+      }
       const { data, error } = await supabase
         .from("profiles")
         .select("id,full_name,phone,created_at")
@@ -87,6 +111,11 @@ function AdminPanel() {
   });
 
   const decide = async (id: string, status: "approved" | "rejected" | "completed" | "no_show") => {
+    const target = (appointments.data ?? []).find((a) => a.id === id);
+    if (isDoctorOnly && target && target.doctor_id !== doctorId) {
+      toast.error("لا يمكنك التصرف بموعد طبيب آخر");
+      return;
+    }
     const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
     if (error) {
       toast.error("تعذّر تحديث الموعد");
@@ -153,6 +182,14 @@ function AdminPanel() {
           </TabsTrigger>
           <TabsTrigger value="clinic" className="gap-1">
             <Stethoscope className="size-4" /> الأطباء والخدمات
+          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="reviews" className="gap-1">
+              <Star className="size-4" /> التقييمات
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="me" className="gap-1">
+            <UserCog className="size-4" /> ملفي
           </TabsTrigger>
         </TabsList>
 
@@ -255,8 +292,23 @@ function AdminPanel() {
 
         <TabsContent value="clinic" className="space-y-6">
           <DoctorsManager canEdit={isAdmin} />
+          <DoctorServicesManager
+            doctors={doctorOptions}
+            {...(isDoctorOnly && doctorId ? { lockedDoctorId: doctorId } : {})}
+          />
           <ServicesManager canEdit={isAdmin} services={services.data ?? []} />
-          <SchedulesManager doctors={doctorOptions} />
+          {isAdmin && <SchedulesManager doctors={doctorOptions} />}
+        </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="reviews">
+            <ReviewsModeration />
+          </TabsContent>
+        )}
+
+        <TabsContent value="me" className="space-y-6">
+          {user?.id && <ProfileForm userId={user.id} title="بياناتي الشخصية" />}
+          {doctorId && <DoctorBioEditor doctorId={doctorId} />}
         </TabsContent>
       </Tabs>
     </div>
@@ -266,6 +318,7 @@ function AdminPanel() {
 type AdminAppointment = {
   id: string;
   patient_id: string;
+  doctor_id: string;
   starts_at: string;
   status: string;
   patient_note: string | null;
@@ -555,6 +608,87 @@ function SchedulesManager({ doctors }: { doctors: { id: string; name: string; ti
             إضافة دوام
           </Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+function DoctorBioEditor({ doctorId }: { doctorId: string }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ name: "", title: "", specialty: "", bio: "" });
+  const [ready, setReady] = useState(false);
+
+  const doctor = useQuery({
+    queryKey: ["doctor-self", doctorId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("doctors").select("*").eq("id", doctorId).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (!doctor.data || ready) return;
+    setReady(true);
+    setForm({
+      name: doctor.data.name ?? "",
+      title: doctor.data.title ?? "",
+      specialty: doctor.data.specialty ?? "",
+      bio: doctor.data.bio ?? "",
+    });
+  }, [doctor.data, ready]);
+
+  const save = async () => {
+    const { error } = await supabase
+      .from("doctors")
+      .update({
+        name: form.name.trim().slice(0, 120),
+        title: form.title.trim().slice(0, 60) || null,
+        specialty: form.specialty.trim().slice(0, 120) || null,
+        bio: form.bio.trim().slice(0, 600) || null,
+      })
+      .eq("id", doctorId);
+    if (error) {
+      toast.error("تعذّر الحفظ");
+      return;
+    }
+    toast.success("تم تحديث بطاقة الطبيب");
+    void qc.invalidateQueries({ queryKey: ["doctor-self", doctorId] });
+    void qc.invalidateQueries({ queryKey: ["doctors"] });
+    void qc.invalidateQueries({ queryKey: ["admin-doctors"] });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">بطاقتي كطبيب في الموقع</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label>اللقب</Label>
+            <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>الاسم</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>الاختصاص</Label>
+            <Input
+              value={form.specialty}
+              onChange={(e) => setForm({ ...form, specialty: e.target.value })}
+            />
+          </div>
+        </div>
+        <Textarea
+          rows={3}
+          placeholder="نبذة تعريفية"
+          value={form.bio}
+          onChange={(e) => setForm({ ...form, bio: e.target.value })}
+        />
+        <Button onClick={() => void save()}>حفظ بطاقة الطبيب</Button>
       </CardContent>
     </Card>
   );

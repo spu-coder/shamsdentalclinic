@@ -27,6 +27,27 @@ export const Route = createFileRoute("/services")({
 });
 
 function ServicesPage() {
+  const ranges = useQuery({
+    queryKey: ["service-price-range"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("doctor_services")
+        .select("service_id,price")
+        .eq("is_active", true);
+      if (error) throw error;
+      const map: Record<string, { min: number; max: number }> = {};
+      (data ?? []).forEach((r) => {
+        if (r.price == null) return;
+        const v = Number(r.price);
+        const cur = map[r.service_id];
+        map[r.service_id] = cur
+          ? { min: Math.min(cur.min, v), max: Math.max(cur.max, v) }
+          : { min: v, max: v };
+      });
+      return map;
+    },
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["services"],
     queryFn: async () => {
@@ -44,7 +65,8 @@ function ServicesPage() {
     <div className="mx-auto max-w-6xl px-4 py-12">
       <h1 className="text-3xl font-extrabold">الخدمات</h1>
       <p className="mt-3 max-w-2xl text-muted-foreground">
-        نغطي معالجات الأسنان التخصصية للأطفال والكبار بأحدث التقنيات وتعقيم كامل للأدوات.
+        نغطي معالجات الأسنان التخصصية للأطفال والكبار بأحدث التقنيات وتعقيم كامل للأدوات. تختلف
+        الأجور حسب الطبيب المعالج ودرجة اختصاصه.
       </p>
 
       <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -64,9 +86,21 @@ function ServicesPage() {
                     <Clock className="size-4" />
                     {s.duration_min} دقيقة
                   </span>
-                  {s.price != null && (
-                    <span className="font-semibold text-primary">{formatMoney(Number(s.price))}</span>
-                  )}
+                  {(() => {
+                    const r = ranges.data?.[s.id];
+                    if (r) {
+                      return (
+                        <span className="font-semibold text-primary">
+                          {r.min === r.max
+                            ? formatMoney(r.min)
+                            : `${formatMoney(r.min)} — ${formatMoney(r.max)}`}
+                        </span>
+                      );
+                    }
+                    return s.price != null ? (
+                      <span className="font-semibold text-primary">{formatMoney(Number(s.price))}</span>
+                    ) : null;
+                  })()}
                 </div>
                 <Button asChild className="mt-4" size="sm">
                   <Link to="/book" search={{ service: s.id }}>

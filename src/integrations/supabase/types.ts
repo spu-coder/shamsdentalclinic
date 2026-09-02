@@ -96,6 +96,64 @@ export type Database = {
           },
         ]
       }
+      doctor_reviews: {
+        Row: {
+          appointment_id: string | null
+          comment: string | null
+          created_at: string
+          doctor_id: string
+          id: string
+          is_visible: boolean
+          patient_id: string
+          rating: number
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          comment?: string | null
+          created_at?: string
+          doctor_id: string
+          id?: string
+          is_visible?: boolean
+          patient_id: string
+          rating: number
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          comment?: string | null
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          is_visible?: boolean
+          patient_id?: string
+          rating?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_reviews_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_reviews_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_reviews_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctor_schedules: {
         Row: {
           doctor_id: string
@@ -130,6 +188,54 @@ export type Database = {
             columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      doctor_services: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          duration_min: number
+          id: string
+          is_active: boolean
+          price: number | null
+          service_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          duration_min?: number
+          id?: string
+          is_active?: boolean
+          price?: number | null
+          service_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          duration_min?: number
+          id?: string
+          is_active?: boolean
+          price?: number | null
+          service_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_services_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
@@ -574,6 +680,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_doctor_id: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -581,6 +688,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin_or_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_my_patient: { Args: { _patient_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       taken_slots: {
         Args: { _doctor_id: string; _from: string; _to: string }
