@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CalendarCheck, Search, Star, Stethoscope, UserCog, Users } from "lucide-react";
 
@@ -628,7 +628,8 @@ function DoctorBioEditor({ doctorId }: { doctorId: string }) {
     },
   });
 
-  if (doctor.data && !ready) {
+  useEffect(() => {
+    if (!doctor.data || ready) return;
     setReady(true);
     setForm({
       name: doctor.data.name ?? "",
@@ -636,7 +637,7 @@ function DoctorBioEditor({ doctorId }: { doctorId: string }) {
       specialty: doctor.data.specialty ?? "",
       bio: doctor.data.bio ?? "",
     });
-  }
+  }, [doctor.data, ready]);
 
   const save = async () => {
     const { error } = await supabase
