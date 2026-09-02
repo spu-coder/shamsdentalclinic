@@ -158,6 +158,10 @@ export function PatientFile({
           />
         </TabsContent>
 
+        <TabsContent value="info">
+          <ProfileForm userId={patientId} title="تعديل معلومات المريض" />
+        </TabsContent>
+
         <TabsContent value="health">
           <HealthForm patientId={patientId} />
         </TabsContent>
