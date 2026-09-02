@@ -6,8 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Reveal } from "@/components/site/Reveal";
 import { supabase } from "@/integrations/supabase/client";
-import { Stars, useDoctorRatings } from "@/components/clinic/Reviews";
-import { formatMoney } from "@/lib/clinic";
 
 export const Route = createFileRoute("/team")({
   head: () => ({
