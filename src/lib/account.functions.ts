@@ -17,7 +17,7 @@ export const ensureAccountSetup = createServerFn({ method: "POST" })
     await supabaseAdmin
       .from("profiles")
       .upsert(
-        { id: userId, full_name: claims.user_metadata?.full_name ?? email || null },
+        { id: userId, full_name: claims.user_metadata?.full_name ?? (email || null) },
         { onConflict: "id", ignoreDuplicates: true },
       );
 
