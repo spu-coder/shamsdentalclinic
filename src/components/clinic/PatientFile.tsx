@@ -20,6 +20,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { HealthForm } from "@/components/clinic/HealthForm";
 import { MediaGallery } from "@/components/clinic/MediaGallery";
+import { ProfileForm } from "@/components/clinic/ProfileForm";
 import { CLINIC, formatMoney } from "@/lib/clinic";
 
 type Doctor = { id: string; name: string; title: string | null };
