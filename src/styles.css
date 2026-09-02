@@ -235,7 +235,43 @@
 }
 
 @media print {
-  .no-print {
+  .no-print,
+  .print-hide {
     display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .print-overlay {
+    position: static !important;
+    inset: auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  .print-overlay ~ * ,
+  body > div:not(:has(.print-overlay)) {
+    display: revert;
+  }
+
+  .print-area {
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 12mm !important;
+    color: #123b46 !important;
+    background: #fff !important;
+  }
+
+  .print-section {
+    break-inside: avoid;
+  }
+
+  @page {
+    size: A4;
+    margin: 8mm;
   }
 }
