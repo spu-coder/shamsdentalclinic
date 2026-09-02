@@ -1,5 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
-import { getTakenSlots } from "@/lib/availability.functions";
+import { getDayAvailability } from "@/lib/availability.functions";
 
 export type Slot = { start: Date; end: Date; taken: boolean };
 
@@ -30,33 +29,21 @@ export async function getDaySlots(
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const [{ data: schedules }, taken, { data: offs }] = await Promise.all([
-    supabase
-      .from("doctor_schedules")
-      .select("start_time,end_time,slot_minutes")
-      .eq("doctor_id", doctorId)
-      .eq("weekday", weekday)
-      .eq("is_active", true),
-    getTakenSlots({
-      data: {
-        doctorId,
-        from: dayStart.toISOString(),
-        to: dayEnd.toISOString(),
-      },
-    }).catch(() => [] as { starts_at: string; ends_at: string }[]),
-    supabase
-      .from("time_off")
-      .select("starts_at,ends_at")
-      .eq("doctor_id", doctorId)
-      .lt("starts_at", dayEnd.toISOString())
-      .gt("ends_at", dayStart.toISOString()),
-  ]);
+  const { schedules, offs, taken } = await getDayAvailability({
+    data: {
+      doctorId,
+      weekday,
+      from: dayStart.toISOString(),
+      to: dayEnd.toISOString(),
+    },
+  }).catch(() => ({ schedules: [], offs: [], taken: [] }));
 
   const takenSet = new Set(taken.map((t) => new Date(t.starts_at).getTime()));
-  const offRanges: [number, number][] = (offs ?? []).map((o) => [
+  const offRanges: [number, number][] = offs.map((o) => [
     new Date(o.starts_at).getTime(),
     new Date(o.ends_at).getTime(),
   ]);
+
 
   const slots: Slot[] = [];
   const now = Date.now();
