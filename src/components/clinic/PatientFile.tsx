@@ -105,6 +105,7 @@ export function PatientFile({
           <TabsTrigger value="media">الصور</TabsTrigger>
           <TabsTrigger value="health">الملف الصحي</TabsTrigger>
           <TabsTrigger value="billing">الفواتير والدفعات</TabsTrigger>
+          <TabsTrigger value="info">المعلومات الشخصية</TabsTrigger>
         </TabsList>
 
         <TabsContent value="visits" className="space-y-4">
