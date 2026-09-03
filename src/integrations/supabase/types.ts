@@ -96,6 +96,45 @@ export type Database = {
           },
         ]
       }
+      clinic_settings: {
+        Row: {
+          address: string | null
+          facebook_url: string | null
+          id: boolean
+          instagram_url: string | null
+          landline: string | null
+          map_url: string | null
+          phone: string | null
+          phone_alt: string | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          facebook_url?: string | null
+          id?: boolean
+          instagram_url?: string | null
+          landline?: string | null
+          map_url?: string | null
+          phone?: string | null
+          phone_alt?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          facebook_url?: string | null
+          id?: boolean
+          instagram_url?: string | null
+          landline?: string | null
+          map_url?: string | null
+          phone?: string | null
+          phone_alt?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       doctor_reviews: {
         Row: {
           appointment_id: string | null
@@ -105,6 +144,7 @@ export type Database = {
           id: string
           is_visible: boolean
           patient_id: string
+          price_rating: number | null
           rating: number
           updated_at: string
         }
@@ -116,6 +156,7 @@ export type Database = {
           id?: string
           is_visible?: boolean
           patient_id: string
+          price_rating?: number | null
           rating: number
           updated_at?: string
         }
@@ -127,6 +168,7 @@ export type Database = {
           id?: string
           is_visible?: boolean
           patient_id?: string
+          price_rating?: number | null
           rating?: number
           updated_at?: string
         }
@@ -195,6 +237,8 @@ export type Database = {
       doctor_services: {
         Row: {
           created_at: string
+          discount_price: number | null
+          discount_until: string | null
           doctor_id: string
           duration_min: number
           id: string
@@ -205,6 +249,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          discount_price?: number | null
+          discount_until?: string | null
           doctor_id: string
           duration_min?: number
           id?: string
@@ -215,6 +261,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          discount_price?: number | null
+          discount_until?: string | null
           doctor_id?: string
           duration_min?: number
           id?: string
@@ -390,6 +438,30 @@ export type Database = {
           },
         ]
       }
+      page_access: {
+        Row: {
+          id: string
+          is_visible: boolean
+          page_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          is_visible?: boolean
+          page_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          is_visible?: boolean
+          page_key?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -463,9 +535,13 @@ export type Database = {
           category: string | null
           created_at: string
           description: string | null
+          discount_price: number | null
+          discount_until: string | null
           duration_min: number
+          hide_price: boolean
           id: string
           is_active: boolean
+          is_featured: boolean
           name: string
           price: number | null
           sort_order: number
@@ -474,9 +550,13 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          discount_price?: number | null
+          discount_until?: string | null
           duration_min?: number
+          hide_price?: boolean
           id?: string
           is_active?: boolean
+          is_featured?: boolean
           name: string
           price?: number | null
           sort_order?: number
@@ -485,9 +565,13 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          discount_price?: number | null
+          discount_until?: string | null
           duration_min?: number
+          hide_price?: boolean
           id?: string
           is_active?: boolean
+          is_featured?: boolean
           name?: string
           price?: number | null
           sort_order?: number
@@ -723,12 +807,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -752,11 +836,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -777,11 +861,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -802,11 +886,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -819,11 +903,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
