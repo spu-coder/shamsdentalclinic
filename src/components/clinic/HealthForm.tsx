@@ -123,12 +123,21 @@ export function HealthForm({ patientId }: { patientId?: string }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>زمرة الدم</Label>
-            <Input
-              dir="ltr"
-              value={form.blood_type}
-              onChange={(e) => setForm({ ...form, blood_type: e.target.value })}
-              maxLength={10}
-            />
+            <Select
+              value={form.blood_type || "unknown"}
+              onValueChange={(v) => setForm({ ...form, blood_type: v })}
+            >
+              <SelectTrigger dir="ltr">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {BLOOD_TYPES.map((b) => (
+                  <SelectItem key={b} value={b}>
+                    {bloodLabel(b)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>الحساسية (أدوية/بنسلين…)</Label>
