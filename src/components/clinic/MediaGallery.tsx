@@ -104,6 +104,29 @@ export function MediaGallery({
     }
   };
 
+  const startEdit = (row: MediaRow) => {
+    setEditing(row.id);
+    setEditCaption(row.caption ?? "");
+    setEditDate(row.taken_at?.slice(0, 10) ?? "");
+  };
+
+  const saveEdit = async (row: MediaRow) => {
+    const { error } = await supabase
+      .from("visit_media")
+      .update({
+        caption: editCaption.slice(0, 300) || null,
+        taken_at: editDate || row.taken_at,
+      })
+      .eq("id", row.id);
+    if (error) {
+      toast.error("تعذّر حفظ التعديل");
+      return;
+    }
+    toast.success("تم تحديث بيانات الصورة");
+    setEditing(null);
+    await qc.invalidateQueries({ queryKey: ["visit-media", patientId] });
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
