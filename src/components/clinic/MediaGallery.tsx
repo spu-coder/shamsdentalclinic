@@ -222,16 +222,46 @@ export function MediaGallery({
                     {new Date(m.taken_at).toLocaleDateString("ar-SY")}
                   </span>
                 </div>
-                {m.caption && <p className="text-muted-foreground">{m.caption}</p>}
-                {canEdit && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive"
-                    onClick={() => void remove(m)}
-                  >
-                    <Trash2 className="size-4" /> حذف
-                  </Button>
+                {editing === m.id ? (
+                  <div className="space-y-2 pt-1">
+                    <Input
+                      value={editCaption}
+                      maxLength={300}
+                      placeholder="وصف / شرح الحالة في الصورة"
+                      onChange={(e) => setEditCaption(e.target.value)}
+                    />
+                    <Input
+                      type="date"
+                      dir="ltr"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => void saveEdit(m)}>
+                        حفظ
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
+                        إلغاء
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  m.caption && <p className="text-muted-foreground">{m.caption}</p>
+                )}
+                {canEdit && editing !== m.id && (
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(m)}>
+                      <Pencil className="size-4" /> تعديل
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={() => void remove(m)}
+                    >
+                      <Trash2 className="size-4" /> حذف
+                    </Button>
+                  </div>
                 )}
               </figcaption>
             </figure>
