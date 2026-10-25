@@ -141,7 +141,7 @@ function PatientDashboard() {
       </header>
 
       <Tabs defaultValue="appts">
-        <TabsList className="flex w-full flex-wrap">
+        <TabsList className="grid w-full grid-cols-3 gap-1 sm:grid-cols-6">
           <TabsTrigger value="appts" className="gap-1">
             <CalendarDays className="size-4" /> مواعيدي
           </TabsTrigger>
@@ -250,22 +250,14 @@ function PatientDashboard() {
 
 
         <TabsContent value="billing">
-          <Card className="print-area">
-            <CardHeader className="flex-row items-center justify-between">
+          <Card>
+            <CardHeader>
               <div>
                 <CardTitle className="text-base">كشف حساب</CardTitle>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {CLINIC.name} — {CLINIC.phone}
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="no-print"
-                onClick={() => window.print()}
-              >
-                <Printer className="size-4" /> طباعة
-              </Button>
             </CardHeader>
             <CardContent className="space-y-3">
               {(invoices.data ?? []).length === 0 && (

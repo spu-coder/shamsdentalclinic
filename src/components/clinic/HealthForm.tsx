@@ -8,7 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+
+const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"] as const;
+
+const bloodLabel = (v: string) => (v === "unknown" ? "لا أعرف" : v);
 
 type HealthState = {
   blood_type: string;
@@ -112,12 +123,21 @@ export function HealthForm({ patientId }: { patientId?: string }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>زمرة الدم</Label>
-            <Input
-              dir="ltr"
-              value={form.blood_type}
-              onChange={(e) => setForm({ ...form, blood_type: e.target.value })}
-              maxLength={10}
-            />
+            <Select
+              value={form.blood_type || "unknown"}
+              onValueChange={(v) => setForm({ ...form, blood_type: v })}
+            >
+              <SelectTrigger dir="ltr">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {BLOOD_TYPES.map((b) => (
+                  <SelectItem key={b} value={b}>
+                    {bloodLabel(b)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>الحساسية (أدوية/بنسلين…)</Label>

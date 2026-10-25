@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { ImagePlus, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,9 @@ export function MediaGallery({
   const [visitId, setVisitId] = useState<string>("none");
   const [busy, setBusy] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editCaption, setEditCaption] = useState("");
+  const [editDate, setEditDate] = useState("");
 
   const media = useQuery({
     queryKey: ["visit-media", patientId],
@@ -99,6 +102,29 @@ export function MediaGallery({
     } catch {
       toast.error("تعذّر الحذف");
     }
+  };
+
+  const startEdit = (row: MediaRow) => {
+    setEditing(row.id);
+    setEditCaption(row.caption ?? "");
+    setEditDate(row.taken_at?.slice(0, 10) ?? "");
+  };
+
+  const saveEdit = async (row: MediaRow) => {
+    const { error } = await supabase
+      .from("visit_media")
+      .update({
+        caption: editCaption.slice(0, 300) || null,
+        taken_at: editDate || row.taken_at,
+      })
+      .eq("id", row.id);
+    if (error) {
+      toast.error("تعذّر حفظ التعديل");
+      return;
+    }
+    toast.success("تم تحديث بيانات الصورة");
+    setEditing(null);
+    await qc.invalidateQueries({ queryKey: ["visit-media", patientId] });
   };
 
   return (
@@ -196,16 +222,46 @@ export function MediaGallery({
                     {new Date(m.taken_at).toLocaleDateString("ar-SY")}
                   </span>
                 </div>
-                {m.caption && <p className="text-muted-foreground">{m.caption}</p>}
-                {canEdit && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive"
-                    onClick={() => void remove(m)}
-                  >
-                    <Trash2 className="size-4" /> حذف
-                  </Button>
+                {editing === m.id ? (
+                  <div className="space-y-2 pt-1">
+                    <Input
+                      value={editCaption}
+                      maxLength={300}
+                      placeholder="وصف / شرح الحالة في الصورة"
+                      onChange={(e) => setEditCaption(e.target.value)}
+                    />
+                    <Input
+                      type="date"
+                      dir="ltr"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => void saveEdit(m)}>
+                        حفظ
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
+                        إلغاء
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  m.caption && <p className="text-muted-foreground">{m.caption}</p>
+                )}
+                {canEdit && editing !== m.id && (
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(m)}>
+                      <Pencil className="size-4" /> تعديل
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={() => void remove(m)}
+                    >
+                      <Trash2 className="size-4" /> حذف
+                    </Button>
+                  </div>
                 )}
               </figcaption>
             </figure>

@@ -58,6 +58,7 @@ export function ReviewForm({
 }) {
   const qc = useQueryClient();
   const [rating, setRating] = useState(0);
+  const [priceRating, setPriceRating] = useState(0);
   const [comment, setComment] = useState("");
 
   const existing = useQuery({
@@ -77,6 +78,7 @@ export function ReviewForm({
   useEffect(() => {
     if (!existing.data) return;
     setRating(existing.data.rating);
+    setPriceRating(existing.data.price_rating ?? 0);
     setComment(existing.data.comment ?? "");
   }, [existing.data]);
 
@@ -88,12 +90,17 @@ export function ReviewForm({
         patient_id: patientId,
         appointment_id: appointmentId,
         rating,
+        price_rating: priceRating > 0 ? priceRating : null,
         comment: comment.trim().slice(0, 500) || null,
       };
       if (existing.data) {
         const { error } = await supabase
           .from("doctor_reviews")
-          .update({ rating: payload.rating, comment: payload.comment })
+          .update({
+            rating: payload.rating,
+            price_rating: payload.price_rating,
+            comment: payload.comment,
+          })
           .eq("id", existing.data.id);
         if (error) throw error;
       } else {
@@ -116,6 +123,7 @@ export function ReviewForm({
         {existing.data ? "تقييمك" : "قيّم تجربتك"} مع {doctorName}
       </p>
       <div className="mt-2 flex items-center gap-1">
+        <span className="me-1 text-xs text-muted-foreground">المعالجة:</span>
         {[1, 2, 3, 4, 5].map((i) => (
           <button
             key={i}
@@ -126,6 +134,22 @@ export function ReviewForm({
           >
             <Star
               className={`size-6 ${i <= rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`}
+            />
+          </button>
+        ))}
+      </div>
+      <div className="mt-1 flex items-center gap-1">
+        <span className="me-1 text-xs text-muted-foreground">الأسعار:</span>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <button
+            key={i}
+            type="button"
+            aria-label={`تقييم الأسعار ${i} نجوم`}
+            onClick={() => setPriceRating(i)}
+            className="p-0.5"
+          >
+            <Star
+              className={`size-5 ${i <= priceRating ? "fill-teal-400 text-teal-400" : "text-muted-foreground"}`}
             />
           </button>
         ))}
@@ -160,6 +184,7 @@ export function ReviewsModeration() {
       return data as unknown as {
         id: string;
         rating: number;
+        price_rating: number | null;
         comment: string | null;
         is_visible: boolean;
         created_at: string;
@@ -193,6 +218,11 @@ export function ReviewsModeration() {
             <div>
               <p className="font-medium">
                 {r.doctors?.title} {r.doctors?.name} — <Stars value={r.rating} />
+                {r.price_rating ? (
+                  <span className="ms-2 text-xs text-muted-foreground">
+                    الأسعار: <Stars value={r.price_rating} size={12} />
+                  </span>
+                ) : null}
               </p>
               <p className="text-xs text-muted-foreground">
                 {r.profiles?.full_name ?? "مريض"} — {new Date(r.created_at).toLocaleDateString("ar-SY")}

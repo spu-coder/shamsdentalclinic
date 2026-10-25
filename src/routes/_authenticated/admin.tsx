@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CalendarCheck, Search, Star, Stethoscope, UserCog, Users } from "lucide-react";
+import { CalendarCheck, Search, Settings2, ShieldCheck, Star, Stethoscope, UserCog, UserPlus, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,10 @@ import { ProfileForm } from "@/components/clinic/ProfileForm";
 import { DoctorServicesManager } from "@/components/clinic/DoctorServicesManager";
 import { ReviewsModeration } from "@/components/clinic/Reviews";
 import { STATUS_AR, WEEKDAYS_AR, formatDateTimeAr, formatMoney } from "@/lib/clinic";
+import { PAGE_KEYS, ROLE_LABELS, usePageAccessRows, type PageAccessRow } from "@/lib/page-access";
+import { useClinicSettings } from "@/lib/settings";
+import { createStaffAccount } from "@/lib/staff-accounts.functions";
+import type { AppRole } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -38,6 +42,12 @@ function AdminPanel() {
   const qc = useQueryClient();
   const [patientId, setPatientId] = useState<string | null>(null);
   const [term, setTerm] = useState("");
+  const [tab, setTab] = useState("appts");
+
+  const openPatientFile = (id: string) => {
+    setPatientId(id);
+    setTab("patients");
+  };
 
   const doctors = useQuery({
     queryKey: ["admin-doctors"],
@@ -171,8 +181,8 @@ function AdminPanel() {
         </div>
       </header>
 
-      <Tabs defaultValue="appts">
-        <TabsList className="flex w-full flex-wrap">
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4 lg:grid-cols-7">
           <TabsTrigger value="appts" className="gap-1">
             <CalendarCheck className="size-4" /> المواعيد
             {pending.length > 0 && <Badge variant="secondary">{pending.length}</Badge>}
@@ -186,6 +196,16 @@ function AdminPanel() {
           {isAdmin && (
             <TabsTrigger value="reviews" className="gap-1">
               <Star className="size-4" /> التقييمات
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="accounts" className="gap-1">
+              <UserPlus className="size-4" /> الحسابات
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="settings" className="gap-1">
+              <Settings2 className="size-4" /> الإعدادات
             </TabsTrigger>
           )}
           <TabsTrigger value="me" className="gap-1">
@@ -244,7 +264,7 @@ function AdminPanel() {
                       </Button>
                     </>
                   )}
-                  <Button size="sm" variant="ghost" onClick={() => setPatientId(a.patient_id)}>
+                  <Button size="sm" variant="ghost" onClick={() => openPatientFile(a.patient_id)}>
                     ملف المريض
                   </Button>
                 </div>
@@ -303,6 +323,19 @@ function AdminPanel() {
         {isAdmin && (
           <TabsContent value="reviews">
             <ReviewsModeration />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="accounts" className="space-y-6">
+            <StaffAccountCreator />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="settings" className="space-y-6">
+            <ClinicSettingsManager />
+            <PageAccessManager />
           </TabsContent>
         )}
 
@@ -520,31 +553,192 @@ type ServiceRow = {
   id: string;
   name: string;
   category: string | null;
+  description: string | null;
   price: number | null;
   duration_min: number;
   is_active: boolean;
+  discount_price: number | null;
+  discount_until: string | null;
+  is_featured: boolean;
+  hide_price: boolean;
 };
+
+const emptyServiceForm = {
+  name: "",
+  category: "",
+  description: "",
+  price: "",
+  duration: "30",
+  discount_price: "",
+  discount_until: "",
+  is_featured: false,
+  hide_price: false,
+};
+
+type ServiceFormState = typeof emptyServiceForm;
+
+function servicePayload(f: ServiceFormState) {
+  return {
+    name: f.name.trim().slice(0, 120),
+    category: f.category.trim().slice(0, 60) || null,
+    description: f.description.trim().slice(0, 600) || null,
+    price: f.price ? Number(f.price) : null,
+    duration_min: Number(f.duration) || 30,
+    discount_price: f.discount_price ? Number(f.discount_price) : null,
+    discount_until: f.discount_until || null,
+    is_featured: f.is_featured,
+    hide_price: f.hide_price,
+  };
+}
+
+function ServiceFields({
+  form,
+  setForm,
+}: {
+  form: ServiceFormState;
+  setForm: (f: ServiceFormState) => void;
+}) {
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-1.5">
+          <Label>اسم الخدمة</Label>
+          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>التصنيف</Label>
+          <Input
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>السعر (ل.س)</Label>
+          <Input
+            inputMode="numeric"
+            dir="ltr"
+            value={form.price}
+            onChange={(e) => setForm({ ...form, price: e.target.value.replace(/\D/g, "") })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>المدة (دقيقة)</Label>
+          <Input
+            inputMode="numeric"
+            dir="ltr"
+            value={form.duration}
+            onChange={(e) => setForm({ ...form, duration: e.target.value.replace(/\D/g, "") })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>سعر الحسم (اختياري)</Label>
+          <Input
+            inputMode="numeric"
+            dir="ltr"
+            value={form.discount_price}
+            onChange={(e) =>
+              setForm({ ...form, discount_price: e.target.value.replace(/\D/g, "") })
+            }
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>الحسم حتى تاريخ</Label>
+          <Input
+            type="date"
+            dir="ltr"
+            value={form.discount_until}
+            onChange={(e) => setForm({ ...form, discount_until: e.target.value })}
+          />
+        </div>
+        <label className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
+          تمييز الخدمة
+          <Switch
+            checked={form.is_featured}
+            onCheckedChange={(v) => setForm({ ...form, is_featured: v })}
+          />
+        </label>
+        <label className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
+          إخفاء السعر في صفحة الخدمات
+          <Switch
+            checked={form.hide_price}
+            onCheckedChange={(v) => setForm({ ...form, hide_price: v })}
+          />
+        </label>
+      </div>
+      <div className="space-y-1.5">
+        <Label>وصف الخدمة</Label>
+        <Textarea
+          rows={2}
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+        />
+      </div>
+    </>
+  );
+}
 
 function ServicesManager({ canEdit, services }: { canEdit: boolean; services: ServiceRow[] }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ name: "", category: "", price: "", duration: "30" });
+  const [form, setForm] = useState<ServiceFormState>(emptyServiceForm);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [edit, setEdit] = useState<ServiceFormState>(emptyServiceForm);
+
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: ["admin-services"] });
+    void qc.invalidateQueries({ queryKey: ["services"] });
+  };
 
   const add = async () => {
     if (!form.name.trim()) return;
-    const { error } = await supabase.from("services").insert({
-      name: form.name.trim().slice(0, 120),
-      category: form.category.trim().slice(0, 60) || null,
-      price: form.price ? Number(form.price) : null,
-      duration_min: Number(form.duration) || 30,
-    });
+    const { error } = await supabase.from("services").insert(servicePayload(form));
     if (error) {
       toast.error("تعذّرت الإضافة");
       return;
     }
-    setForm({ name: "", category: "", price: "", duration: "30" });
+    setForm(emptyServiceForm);
     toast.success("تمت إضافة الخدمة");
-    void qc.invalidateQueries({ queryKey: ["admin-services"] });
+    refresh();
   };
+
+  const startEdit = (s: ServiceRow) => {
+    setEditId(s.id);
+    setEdit({
+      name: s.name ?? "",
+      category: s.category ?? "",
+      description: s.description ?? "",
+      price: s.price != null ? String(s.price) : "",
+      duration: String(s.duration_min ?? 30),
+      discount_price: s.discount_price != null ? String(s.discount_price) : "",
+      discount_until: s.discount_until ?? "",
+      is_featured: Boolean(s.is_featured),
+      hide_price: Boolean(s.hide_price),
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editId || !edit.name.trim()) return;
+    const { error } = await supabase.from("services").update(servicePayload(edit)).eq("id", editId);
+    if (error) {
+      toast.error("تعذّر حفظ التعديل");
+      return;
+    }
+    toast.success("تم حفظ الخدمة");
+    setEditId(null);
+    refresh();
+  };
+
+  const toggleActive = async (id: string, is_active: boolean) => {
+    const { error } = await supabase.from("services").update({ is_active }).eq("id", id);
+    if (error) {
+      toast.error("تعذّر التحديث");
+      return;
+    }
+    refresh();
+  };
+
+  const hasDiscount = (s: ServiceRow) =>
+    s.discount_price != null &&
+    (!s.discount_until || new Date(s.discount_until).getTime() >= Date.now());
 
   return (
     <Card>
@@ -553,41 +747,70 @@ function ServicesManager({ canEdit, services }: { canEdit: boolean; services: Se
       </CardHeader>
       <CardContent className="space-y-3">
         {services.map((s) => (
-          <div key={s.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-            <div>
-              <p className="font-medium">{s.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {s.category ?? "—"} — {s.duration_min} دقيقة
-              </p>
+          <div key={s.id} className="space-y-3 rounded-lg border p-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="font-medium">
+                  {s.name}
+                  {s.is_featured && (
+                    <Badge variant="secondary" className="ms-2">
+                      مميزة
+                    </Badge>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {s.category ?? "—"} — {s.duration_min} دقيقة
+                  {s.hide_price ? " — السعر مخفي في صفحة الخدمات" : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold">
+                  {hasDiscount(s) ? (
+                    <>
+                      <span className="me-1 line-through opacity-60">{formatMoney(s.price)}</span>
+                      <span className="text-primary">{formatMoney(s.discount_price)}</span>
+                    </>
+                  ) : (
+                    formatMoney(s.price)
+                  )}
+                </span>
+                {canEdit && (
+                  <>
+                    <Switch
+                      checked={s.is_active}
+                      onCheckedChange={(v) => void toggleActive(s.id, v)}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => (editId === s.id ? setEditId(null) : startEdit(s))}
+                    >
+                      {editId === s.id ? "إغلاق" : "تعديل"}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-            <span className="text-xs font-semibold">{formatMoney(s.price)}</span>
+            {canEdit && editId === s.id && (
+              <div className="space-y-3 rounded-lg bg-muted/40 p-3">
+                <ServiceFields form={edit} setForm={setEdit} />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => void saveEdit()}>
+                    حفظ التعديل
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                    إلغاء
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
         {canEdit && (
-          <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-4">
-            <Input
-              placeholder="اسم الخدمة"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              placeholder="التصنيف"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-            />
-            <Input
-              placeholder="السعر"
-              inputMode="numeric"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value.replace(/\D/g, "") })}
-            />
-            <Input
-              placeholder="المدة"
-              inputMode="numeric"
-              value={form.duration}
-              onChange={(e) => setForm({ ...form, duration: e.target.value.replace(/\D/g, "") })}
-            />
-            <Button size="sm" className="sm:col-span-4" onClick={() => void add()}>
+          <div className="space-y-3 rounded-lg border p-3">
+            <p className="text-sm font-medium">خدمة جديدة</p>
+            <ServiceFields form={form} setForm={setForm} />
+            <Button size="sm" onClick={() => void add()}>
               إضافة خدمة
             </Button>
           </div>
@@ -786,6 +1009,272 @@ function DoctorBioEditor({ doctorId }: { doctorId: string }) {
           onChange={(e) => setForm({ ...form, bio: e.target.value })}
         />
         <Button onClick={() => void save()}>حفظ بطاقة الطبيب</Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** إنشاء حساب طبيب/موظف/مدير مع كلمة سر مباشرة — للمدير فقط. */
+function StaffAccountCreator() {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    fullName: "",
+    phone: "",
+    title: "د.",
+    specialty: "",
+    role: "doctor" as "doctor" | "staff" | "admin",
+  });
+
+  const create = async () => {
+    if (!form.email.includes("@") || form.password.length < 8 || form.fullName.trim().length < 2) {
+      toast.error("أدخل بريداً صحيحاً واسماً وكلمة سر من 8 أحرف على الأقل");
+      return;
+    }
+    setBusy(true);
+    try {
+      await createStaffAccount({
+        data: {
+          email: form.email.trim().toLowerCase(),
+          password: form.password,
+          fullName: form.fullName.trim(),
+          phone: form.phone.trim() || undefined,
+          title: form.title.trim() || undefined,
+          specialty: form.specialty.trim() || undefined,
+          role: form.role,
+        },
+      });
+      toast.success("تم إنشاء الحساب ويمكنه تسجيل الدخول فوراً");
+      setForm({ ...form, email: "", password: "", fullName: "", phone: "", specialty: "" });
+      void qc.invalidateQueries({ queryKey: ["admin-doctors"] });
+    } catch (e) {
+      toast.error(e instanceof Error && e.message !== "forbidden" ? "تعذّر إنشاء الحساب" : "هذه العملية للمدير فقط");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">إنشاء حساب كادر جديد</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>الاسم الكامل</Label>
+            <Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>البريد الإلكتروني</Label>
+            <Input dir="ltr" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>كلمة السر</Label>
+            <Input dir="ltr" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>الهاتف (اختياري)</Label>
+            <Input dir="ltr" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>الدور</Label>
+            <select
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value as "doctor" | "staff" | "admin" })}
+            >
+              <option value="doctor">طبيب</option>
+              <option value="staff">موظف</option>
+              <option value="admin">مدير</option>
+            </select>
+          </div>
+          {form.role === "doctor" && (
+            <>
+              <div className="space-y-1.5">
+                <Label>اللقب</Label>
+                <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>الاختصاص</Label>
+                <Input value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} />
+              </div>
+            </>
+          )}
+        </div>
+        <Button onClick={() => void create()} disabled={busy}>
+          {busy ? "جارٍ الإنشاء…" : "إنشاء الحساب"}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          يُنشأ الحساب مؤكداً ويمكنه تسجيل الدخول فوراً بالبريد وكلمة السر. إن كان البريد مسجلاً مسبقاً تُحدَّث كلمة سره.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** إعدادات التواصل والروابط الاجتماعية للمركز — للمدير فقط. */
+function ClinicSettingsManager() {
+  const qc = useQueryClient();
+  const { settings } = useClinicSettings();
+  const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [form, setForm] = useState({
+    phone: "",
+    phone_alt: "",
+    landline: "",
+    whatsapp: "",
+    address: "",
+    map_url: "",
+    facebook_url: "",
+    instagram_url: "",
+  });
+
+  useEffect(() => {
+    if (ready) return;
+    setReady(true);
+    setForm({
+      phone: settings.phone ?? "",
+      phone_alt: settings.phone_alt ?? "",
+      landline: settings.landline ?? "",
+      whatsapp: settings.whatsapp ?? "",
+      address: settings.address ?? "",
+      map_url: settings.map_url ?? "",
+      facebook_url: settings.facebook_url ?? "",
+      instagram_url: settings.instagram_url ?? "",
+    });
+  }, [settings, ready]);
+
+  const save = async () => {
+    setBusy(true);
+    const { error } = await supabase
+      .from("clinic_settings")
+      .update({
+        phone: form.phone.trim().slice(0, 30),
+        phone_alt: form.phone_alt.trim().slice(0, 30) || null,
+        landline: form.landline.trim().slice(0, 30) || null,
+        whatsapp: form.whatsapp.trim().slice(0, 30) || null,
+        address: form.address.trim().slice(0, 300),
+        map_url: form.map_url.trim().slice(0, 400) || null,
+        facebook_url: form.facebook_url.trim().slice(0, 400) || null,
+        instagram_url: form.instagram_url.trim().slice(0, 400) || null,
+      })
+      .eq("id", true);
+    setBusy(false);
+    if (error) {
+      toast.error("تعذّر حفظ الإعدادات");
+      return;
+    }
+    toast.success("تم حفظ إعدادات المركز");
+    void qc.invalidateQueries({ queryKey: ["clinic-settings"] });
+  };
+
+  const fields: { key: keyof typeof form; label: string; ltr?: boolean }[] = [
+    { key: "phone", label: "هاتف العيادة الرئيسي", ltr: true },
+    { key: "phone_alt", label: "هاتف إضافي", ltr: true },
+    { key: "landline", label: "هاتف أرضي", ltr: true },
+    { key: "whatsapp", label: "رقم واتساب", ltr: true },
+    { key: "address", label: "العنوان" },
+    { key: "map_url", label: "رابط خريطة الموقع", ltr: true },
+    { key: "facebook_url", label: "صفحة فيسبوك", ltr: true },
+    { key: "instagram_url", label: "صفحة إنستاغرام", ltr: true },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">إعدادات المركز والتواصل</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {fields.map((f) => (
+            <div key={f.key} className="space-y-1.5">
+              <Label>{f.label}</Label>
+              <Input
+                {...(f.ltr ? { dir: "ltr" } : {})}
+                value={form[f.key]}
+                onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+              />
+            </div>
+          ))}
+        </div>
+        <Button onClick={() => void save()} disabled={busy}>
+          {busy ? "جارٍ الحفظ…" : "حفظ الإعدادات"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** التحكم بظهور الصفحات لكل دور — للمدير فقط. */
+function PageAccessManager() {
+  const qc = useQueryClient();
+  const rows = usePageAccessRows();
+
+  const key = (pageKey: string, role: AppRole) => `${pageKey}:${role}`;
+  const byKey = new Map((rows.data ?? []).map((r: PageAccessRow) => [key(r.page_key, r.role), r]));
+
+  const toggle = async (pageKey: string, role: AppRole, visible: boolean) => {
+    const existing = byKey.get(key(pageKey, role));
+    const q = existing
+      ? supabase.from("page_access").update({ is_visible: visible }).eq("id", existing.id)
+      : supabase.from("page_access").insert({ page_key: pageKey, role, is_visible: visible });
+    const { error } = await q;
+    if (error) {
+      toast.error("تعذّر حفظ الصلاحية");
+      return;
+    }
+    void qc.invalidateQueries({ queryKey: ["page-access"] });
+  };
+
+  const roles: AppRole[] = ["doctor", "staff", "patient"];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          <ShieldCheck className="me-1 inline size-4" /> التحكم بظهور الصفحات لكل دور
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          المدير يرى كل الصفحات دائماً. أوقف أي صفحة عن دور معيّن من هنا.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-sm">
+            <thead>
+              <tr className="border-b text-xs text-muted-foreground">
+                <th className="p-2 text-start font-medium">الصفحة</th>
+                {roles.map((r) => (
+                  <th key={r} className="p-2 text-center font-medium">
+                    {ROLE_LABELS[r]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {PAGE_KEYS.map((p) => (
+                <tr key={p.key} className="border-b last:border-0">
+                  <td className="p-2">{p.label}</td>
+                  {roles.map((r) => {
+                    const row = byKey.get(key(p.key, r));
+                    const visible = row ? row.is_visible : true;
+                    return (
+                      <td key={r} className="p-2 text-center">
+                        <Switch
+                          checked={visible}
+                          onCheckedChange={(v) => void toggle(p.key, r, v)}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );
