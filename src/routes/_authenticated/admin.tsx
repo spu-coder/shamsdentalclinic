@@ -553,31 +553,192 @@ type ServiceRow = {
   id: string;
   name: string;
   category: string | null;
+  description: string | null;
   price: number | null;
   duration_min: number;
   is_active: boolean;
+  discount_price: number | null;
+  discount_until: string | null;
+  is_featured: boolean;
+  hide_price: boolean;
 };
+
+const emptyServiceForm = {
+  name: "",
+  category: "",
+  description: "",
+  price: "",
+  duration: "30",
+  discount_price: "",
+  discount_until: "",
+  is_featured: false,
+  hide_price: false,
+};
+
+type ServiceFormState = typeof emptyServiceForm;
+
+function servicePayload(f: ServiceFormState) {
+  return {
+    name: f.name.trim().slice(0, 120),
+    category: f.category.trim().slice(0, 60) || null,
+    description: f.description.trim().slice(0, 600) || null,
+    price: f.price ? Number(f.price) : null,
+    duration_min: Number(f.duration) || 30,
+    discount_price: f.discount_price ? Number(f.discount_price) : null,
+    discount_until: f.discount_until || null,
+    is_featured: f.is_featured,
+    hide_price: f.hide_price,
+  };
+}
+
+function ServiceFields({
+  form,
+  setForm,
+}: {
+  form: ServiceFormState;
+  setForm: (f: ServiceFormState) => void;
+}) {
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-1.5">
+          <Label>اسم الخدمة</Label>
+          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>التصنيف</Label>
+          <Input
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>السعر (ل.س)</Label>
+          <Input
+            inputMode="numeric"
+            dir="ltr"
+            value={form.price}
+            onChange={(e) => setForm({ ...form, price: e.target.value.replace(/\D/g, "") })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>المدة (دقيقة)</Label>
+          <Input
+            inputMode="numeric"
+            dir="ltr"
+            value={form.duration}
+            onChange={(e) => setForm({ ...form, duration: e.target.value.replace(/\D/g, "") })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>سعر الحسم (اختياري)</Label>
+          <Input
+            inputMode="numeric"
+            dir="ltr"
+            value={form.discount_price}
+            onChange={(e) =>
+              setForm({ ...form, discount_price: e.target.value.replace(/\D/g, "") })
+            }
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>الحسم حتى تاريخ</Label>
+          <Input
+            type="date"
+            dir="ltr"
+            value={form.discount_until}
+            onChange={(e) => setForm({ ...form, discount_until: e.target.value })}
+          />
+        </div>
+        <label className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
+          تمييز الخدمة
+          <Switch
+            checked={form.is_featured}
+            onCheckedChange={(v) => setForm({ ...form, is_featured: v })}
+          />
+        </label>
+        <label className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
+          إخفاء السعر في صفحة الخدمات
+          <Switch
+            checked={form.hide_price}
+            onCheckedChange={(v) => setForm({ ...form, hide_price: v })}
+          />
+        </label>
+      </div>
+      <div className="space-y-1.5">
+        <Label>وصف الخدمة</Label>
+        <Textarea
+          rows={2}
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+        />
+      </div>
+    </>
+  );
+}
 
 function ServicesManager({ canEdit, services }: { canEdit: boolean; services: ServiceRow[] }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ name: "", category: "", price: "", duration: "30" });
+  const [form, setForm] = useState<ServiceFormState>(emptyServiceForm);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [edit, setEdit] = useState<ServiceFormState>(emptyServiceForm);
+
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: ["admin-services"] });
+    void qc.invalidateQueries({ queryKey: ["services"] });
+  };
 
   const add = async () => {
     if (!form.name.trim()) return;
-    const { error } = await supabase.from("services").insert({
-      name: form.name.trim().slice(0, 120),
-      category: form.category.trim().slice(0, 60) || null,
-      price: form.price ? Number(form.price) : null,
-      duration_min: Number(form.duration) || 30,
-    });
+    const { error } = await supabase.from("services").insert(servicePayload(form));
     if (error) {
       toast.error("تعذّرت الإضافة");
       return;
     }
-    setForm({ name: "", category: "", price: "", duration: "30" });
+    setForm(emptyServiceForm);
     toast.success("تمت إضافة الخدمة");
-    void qc.invalidateQueries({ queryKey: ["admin-services"] });
+    refresh();
   };
+
+  const startEdit = (s: ServiceRow) => {
+    setEditId(s.id);
+    setEdit({
+      name: s.name ?? "",
+      category: s.category ?? "",
+      description: s.description ?? "",
+      price: s.price != null ? String(s.price) : "",
+      duration: String(s.duration_min ?? 30),
+      discount_price: s.discount_price != null ? String(s.discount_price) : "",
+      discount_until: s.discount_until ?? "",
+      is_featured: Boolean(s.is_featured),
+      hide_price: Boolean(s.hide_price),
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editId || !edit.name.trim()) return;
+    const { error } = await supabase.from("services").update(servicePayload(edit)).eq("id", editId);
+    if (error) {
+      toast.error("تعذّر حفظ التعديل");
+      return;
+    }
+    toast.success("تم حفظ الخدمة");
+    setEditId(null);
+    refresh();
+  };
+
+  const toggleActive = async (id: string, is_active: boolean) => {
+    const { error } = await supabase.from("services").update({ is_active }).eq("id", id);
+    if (error) {
+      toast.error("تعذّر التحديث");
+      return;
+    }
+    refresh();
+  };
+
+  const hasDiscount = (s: ServiceRow) =>
+    s.discount_price != null &&
+    (!s.discount_until || new Date(s.discount_until).getTime() >= Date.now());
 
   return (
     <Card>
@@ -586,41 +747,70 @@ function ServicesManager({ canEdit, services }: { canEdit: boolean; services: Se
       </CardHeader>
       <CardContent className="space-y-3">
         {services.map((s) => (
-          <div key={s.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-            <div>
-              <p className="font-medium">{s.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {s.category ?? "—"} — {s.duration_min} دقيقة
-              </p>
+          <div key={s.id} className="space-y-3 rounded-lg border p-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="font-medium">
+                  {s.name}
+                  {s.is_featured && (
+                    <Badge variant="secondary" className="ms-2">
+                      مميزة
+                    </Badge>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {s.category ?? "—"} — {s.duration_min} دقيقة
+                  {s.hide_price ? " — السعر مخفي في صفحة الخدمات" : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold">
+                  {hasDiscount(s) ? (
+                    <>
+                      <span className="me-1 line-through opacity-60">{formatMoney(s.price)}</span>
+                      <span className="text-primary">{formatMoney(s.discount_price)}</span>
+                    </>
+                  ) : (
+                    formatMoney(s.price)
+                  )}
+                </span>
+                {canEdit && (
+                  <>
+                    <Switch
+                      checked={s.is_active}
+                      onCheckedChange={(v) => void toggleActive(s.id, v)}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => (editId === s.id ? setEditId(null) : startEdit(s))}
+                    >
+                      {editId === s.id ? "إغلاق" : "تعديل"}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-            <span className="text-xs font-semibold">{formatMoney(s.price)}</span>
+            {canEdit && editId === s.id && (
+              <div className="space-y-3 rounded-lg bg-muted/40 p-3">
+                <ServiceFields form={edit} setForm={setEdit} />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => void saveEdit()}>
+                    حفظ التعديل
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                    إلغاء
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
         {canEdit && (
-          <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-4">
-            <Input
-              placeholder="اسم الخدمة"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              placeholder="التصنيف"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-            />
-            <Input
-              placeholder="السعر"
-              inputMode="numeric"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value.replace(/\D/g, "") })}
-            />
-            <Input
-              placeholder="المدة"
-              inputMode="numeric"
-              value={form.duration}
-              onChange={(e) => setForm({ ...form, duration: e.target.value.replace(/\D/g, "") })}
-            />
-            <Button size="sm" className="sm:col-span-4" onClick={() => void add()}>
+          <div className="space-y-3 rounded-lg border p-3">
+            <p className="text-sm font-medium">خدمة جديدة</p>
+            <ServiceFields form={form} setForm={setForm} />
+            <Button size="sm" onClick={() => void add()}>
               إضافة خدمة
             </Button>
           </div>
