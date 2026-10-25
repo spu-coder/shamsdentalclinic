@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CalendarCheck, Search, Star, Stethoscope, UserCog, Users } from "lucide-react";
+import { CalendarCheck, Search, Settings2, ShieldCheck, Star, Stethoscope, UserCog, UserPlus, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,10 @@ import { ProfileForm } from "@/components/clinic/ProfileForm";
 import { DoctorServicesManager } from "@/components/clinic/DoctorServicesManager";
 import { ReviewsModeration } from "@/components/clinic/Reviews";
 import { STATUS_AR, WEEKDAYS_AR, formatDateTimeAr, formatMoney } from "@/lib/clinic";
+import { PAGE_KEYS, ROLE_LABELS, usePageAccessRows, type PageAccessRow } from "@/lib/page-access";
+import { useClinicSettings } from "@/lib/settings";
+import { createStaffAccount } from "@/lib/staff-accounts.functions";
+import type { AppRole } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -38,6 +42,12 @@ function AdminPanel() {
   const qc = useQueryClient();
   const [patientId, setPatientId] = useState<string | null>(null);
   const [term, setTerm] = useState("");
+  const [tab, setTab] = useState("appts");
+
+  const openPatientFile = (id: string) => {
+    setPatientId(id);
+    setTab("patients");
+  };
 
   const doctors = useQuery({
     queryKey: ["admin-doctors"],
