@@ -181,8 +181,8 @@ function AdminPanel() {
         </div>
       </header>
 
-      <Tabs defaultValue="appts">
-        <TabsList className="flex w-full flex-wrap">
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4 lg:grid-cols-7">
           <TabsTrigger value="appts" className="gap-1">
             <CalendarCheck className="size-4" /> المواعيد
             {pending.length > 0 && <Badge variant="secondary">{pending.length}</Badge>}
@@ -196,6 +196,16 @@ function AdminPanel() {
           {isAdmin && (
             <TabsTrigger value="reviews" className="gap-1">
               <Star className="size-4" /> التقييمات
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="accounts" className="gap-1">
+              <UserPlus className="size-4" /> الحسابات
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="settings" className="gap-1">
+              <Settings2 className="size-4" /> الإعدادات
             </TabsTrigger>
           )}
           <TabsTrigger value="me" className="gap-1">
@@ -254,7 +264,7 @@ function AdminPanel() {
                       </Button>
                     </>
                   )}
-                  <Button size="sm" variant="ghost" onClick={() => setPatientId(a.patient_id)}>
+                  <Button size="sm" variant="ghost" onClick={() => openPatientFile(a.patient_id)}>
                     ملف المريض
                   </Button>
                 </div>
