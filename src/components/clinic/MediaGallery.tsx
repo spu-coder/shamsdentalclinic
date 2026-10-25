@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { ImagePlus, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,9 @@ export function MediaGallery({
   const [visitId, setVisitId] = useState<string>("none");
   const [busy, setBusy] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editCaption, setEditCaption] = useState("");
+  const [editDate, setEditDate] = useState("");
 
   const media = useQuery({
     queryKey: ["visit-media", patientId],
