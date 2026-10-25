@@ -58,6 +58,7 @@ export function ReviewForm({
 }) {
   const qc = useQueryClient();
   const [rating, setRating] = useState(0);
+  const [priceRating, setPriceRating] = useState(0);
   const [comment, setComment] = useState("");
 
   const existing = useQuery({
@@ -77,6 +78,7 @@ export function ReviewForm({
   useEffect(() => {
     if (!existing.data) return;
     setRating(existing.data.rating);
+    setPriceRating(existing.data.price_rating ?? 0);
     setComment(existing.data.comment ?? "");
   }, [existing.data]);
 
@@ -88,12 +90,17 @@ export function ReviewForm({
         patient_id: patientId,
         appointment_id: appointmentId,
         rating,
+        price_rating: priceRating > 0 ? priceRating : null,
         comment: comment.trim().slice(0, 500) || null,
       };
       if (existing.data) {
         const { error } = await supabase
           .from("doctor_reviews")
-          .update({ rating: payload.rating, comment: payload.comment })
+          .update({
+            rating: payload.rating,
+            price_rating: payload.price_rating,
+            comment: payload.comment,
+          })
           .eq("id", existing.data.id);
         if (error) throw error;
       } else {
