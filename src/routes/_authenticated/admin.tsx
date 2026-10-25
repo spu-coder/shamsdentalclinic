@@ -1013,3 +1013,269 @@ function DoctorBioEditor({ doctorId }: { doctorId: string }) {
     </Card>
   );
 }
+
+/** إنشاء حساب طبيب/موظف/مدير مع كلمة سر مباشرة — للمدير فقط. */
+function StaffAccountCreator() {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    fullName: "",
+    phone: "",
+    title: "د.",
+    specialty: "",
+    role: "doctor" as "doctor" | "staff" | "admin",
+  });
+
+  const create = async () => {
+    if (!form.email.includes("@") || form.password.length < 8 || form.fullName.trim().length < 2) {
+      toast.error("أدخل بريداً صحيحاً واسماً وكلمة سر من 8 أحرف على الأقل");
+      return;
+    }
+    setBusy(true);
+    try {
+      await createStaffAccount({
+        data: {
+          email: form.email.trim().toLowerCase(),
+          password: form.password,
+          fullName: form.fullName.trim(),
+          phone: form.phone.trim() || undefined,
+          title: form.title.trim() || undefined,
+          specialty: form.specialty.trim() || undefined,
+          role: form.role,
+        },
+      });
+      toast.success("تم إنشاء الحساب ويمكنه تسجيل الدخول فوراً");
+      setForm({ ...form, email: "", password: "", fullName: "", phone: "", specialty: "" });
+      void qc.invalidateQueries({ queryKey: ["admin-doctors"] });
+    } catch (e) {
+      toast.error(e instanceof Error && e.message !== "forbidden" ? "تعذّر إنشاء الحساب" : "هذه العملية للمدير فقط");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">إنشاء حساب كادر جديد</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>الاسم الكامل</Label>
+            <Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>البريد الإلكتروني</Label>
+            <Input dir="ltr" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>كلمة السر</Label>
+            <Input dir="ltr" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>الهاتف (اختياري)</Label>
+            <Input dir="ltr" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>الدور</Label>
+            <select
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value as "doctor" | "staff" | "admin" })}
+            >
+              <option value="doctor">طبيب</option>
+              <option value="staff">موظف</option>
+              <option value="admin">مدير</option>
+            </select>
+          </div>
+          {form.role === "doctor" && (
+            <>
+              <div className="space-y-1.5">
+                <Label>اللقب</Label>
+                <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>الاختصاص</Label>
+                <Input value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} />
+              </div>
+            </>
+          )}
+        </div>
+        <Button onClick={() => void create()} disabled={busy}>
+          {busy ? "جارٍ الإنشاء…" : "إنشاء الحساب"}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          يُنشأ الحساب مؤكداً ويمكنه تسجيل الدخول فوراً بالبريد وكلمة السر. إن كان البريد مسجلاً مسبقاً تُحدَّث كلمة سره.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** إعدادات التواصل والروابط الاجتماعية للمركز — للمدير فقط. */
+function ClinicSettingsManager() {
+  const qc = useQueryClient();
+  const { settings } = useClinicSettings();
+  const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [form, setForm] = useState({
+    phone: "",
+    phone_alt: "",
+    landline: "",
+    whatsapp: "",
+    address: "",
+    map_url: "",
+    facebook_url: "",
+    instagram_url: "",
+  });
+
+  useEffect(() => {
+    if (ready) return;
+    setReady(true);
+    setForm({
+      phone: settings.phone ?? "",
+      phone_alt: settings.phone_alt ?? "",
+      landline: settings.landline ?? "",
+      whatsapp: settings.whatsapp ?? "",
+      address: settings.address ?? "",
+      map_url: settings.map_url ?? "",
+      facebook_url: settings.facebook_url ?? "",
+      instagram_url: settings.instagram_url ?? "",
+    });
+  }, [settings, ready]);
+
+  const save = async () => {
+    setBusy(true);
+    const { error } = await supabase
+      .from("clinic_settings")
+      .update({
+        phone: form.phone.trim().slice(0, 30),
+        phone_alt: form.phone_alt.trim().slice(0, 30) || null,
+        landline: form.landline.trim().slice(0, 30) || null,
+        whatsapp: form.whatsapp.trim().slice(0, 30) || null,
+        address: form.address.trim().slice(0, 300),
+        map_url: form.map_url.trim().slice(0, 400) || null,
+        facebook_url: form.facebook_url.trim().slice(0, 400) || null,
+        instagram_url: form.instagram_url.trim().slice(0, 400) || null,
+      })
+      .eq("id", true);
+    setBusy(false);
+    if (error) {
+      toast.error("تعذّر حفظ الإعدادات");
+      return;
+    }
+    toast.success("تم حفظ إعدادات المركز");
+    void qc.invalidateQueries({ queryKey: ["clinic-settings"] });
+  };
+
+  const fields: { key: keyof typeof form; label: string; ltr?: boolean }[] = [
+    { key: "phone", label: "هاتف العيادة الرئيسي", ltr: true },
+    { key: "phone_alt", label: "هاتف إضافي", ltr: true },
+    { key: "landline", label: "هاتف أرضي", ltr: true },
+    { key: "whatsapp", label: "رقم واتساب", ltr: true },
+    { key: "address", label: "العنوان" },
+    { key: "map_url", label: "رابط خريطة الموقع", ltr: true },
+    { key: "facebook_url", label: "صفحة فيسبوك", ltr: true },
+    { key: "instagram_url", label: "صفحة إنستاغرام", ltr: true },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">إعدادات المركز والتواصل</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {fields.map((f) => (
+            <div key={f.key} className="space-y-1.5">
+              <Label>{f.label}</Label>
+              <Input
+                {...(f.ltr ? { dir: "ltr" } : {})}
+                value={form[f.key]}
+                onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+              />
+            </div>
+          ))}
+        </div>
+        <Button onClick={() => void save()} disabled={busy}>
+          {busy ? "جارٍ الحفظ…" : "حفظ الإعدادات"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** التحكم بظهور الصفحات لكل دور — للمدير فقط. */
+function PageAccessManager() {
+  const qc = useQueryClient();
+  const rows = usePageAccessRows();
+
+  const key = (pageKey: string, role: AppRole) => `${pageKey}:${role}`;
+  const byKey = new Map((rows.data ?? []).map((r: PageAccessRow) => [key(r.page_key, r.role), r]));
+
+  const toggle = async (pageKey: string, role: AppRole, visible: boolean) => {
+    const existing = byKey.get(key(pageKey, role));
+    const q = existing
+      ? supabase.from("page_access").update({ is_visible: visible }).eq("id", existing.id)
+      : supabase.from("page_access").insert({ page_key: pageKey, role, is_visible: visible });
+    const { error } = await q;
+    if (error) {
+      toast.error("تعذّر حفظ الصلاحية");
+      return;
+    }
+    void qc.invalidateQueries({ queryKey: ["page-access"] });
+  };
+
+  const roles: AppRole[] = ["doctor", "staff", "patient"];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          <ShieldCheck className="me-1 inline size-4" /> التحكم بظهور الصفحات لكل دور
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          المدير يرى كل الصفحات دائماً. أوقف أي صفحة عن دور معيّن من هنا.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-sm">
+            <thead>
+              <tr className="border-b text-xs text-muted-foreground">
+                <th className="p-2 text-start font-medium">الصفحة</th>
+                {roles.map((r) => (
+                  <th key={r} className="p-2 text-center font-medium">
+                    {ROLE_LABELS[r]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {PAGE_KEYS.map((p) => (
+                <tr key={p.key} className="border-b last:border-0">
+                  <td className="p-2">{p.label}</td>
+                  {roles.map((r) => {
+                    const row = byKey.get(key(p.key, r));
+                    const visible = row ? row.is_visible : true;
+                    return (
+                      <td key={r} className="p-2 text-center">
+                        <Switch
+                          checked={visible}
+                          onCheckedChange={(v) => void toggle(p.key, r, v)}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
