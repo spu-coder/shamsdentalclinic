@@ -184,6 +184,7 @@ export function ReviewsModeration() {
       return data as unknown as {
         id: string;
         rating: number;
+        price_rating: number | null;
         comment: string | null;
         is_visible: boolean;
         created_at: string;
@@ -217,6 +218,11 @@ export function ReviewsModeration() {
             <div>
               <p className="font-medium">
                 {r.doctors?.title} {r.doctors?.name} — <Stars value={r.rating} />
+                {r.price_rating ? (
+                  <span className="ms-2 text-xs text-muted-foreground">
+                    الأسعار: <Stars value={r.price_rating} size={12} />
+                  </span>
+                ) : null}
               </p>
               <p className="text-xs text-muted-foreground">
                 {r.profiles?.full_name ?? "مريض"} — {new Date(r.created_at).toLocaleDateString("ar-SY")}
