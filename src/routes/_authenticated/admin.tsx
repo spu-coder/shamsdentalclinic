@@ -326,6 +326,19 @@ function AdminPanel() {
           </TabsContent>
         )}
 
+        {isAdmin && (
+          <TabsContent value="accounts" className="space-y-6">
+            <StaffAccountCreator />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="settings" className="space-y-6">
+            <ClinicSettingsManager />
+            <PageAccessManager />
+          </TabsContent>
+        )}
+
         <TabsContent value="me" className="space-y-6">
           {user?.id && <ProfileForm userId={user.id} title="بياناتي الشخصية" />}
           {doctorId && <DoctorBioEditor doctorId={doctorId} />}
