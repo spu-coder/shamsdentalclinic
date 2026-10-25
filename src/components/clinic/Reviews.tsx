@@ -123,6 +123,7 @@ export function ReviewForm({
         {existing.data ? "تقييمك" : "قيّم تجربتك"} مع {doctorName}
       </p>
       <div className="mt-2 flex items-center gap-1">
+        <span className="me-1 text-xs text-muted-foreground">المعالجة:</span>
         {[1, 2, 3, 4, 5].map((i) => (
           <button
             key={i}
@@ -133,6 +134,22 @@ export function ReviewForm({
           >
             <Star
               className={`size-6 ${i <= rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`}
+            />
+          </button>
+        ))}
+      </div>
+      <div className="mt-1 flex items-center gap-1">
+        <span className="me-1 text-xs text-muted-foreground">الأسعار:</span>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <button
+            key={i}
+            type="button"
+            aria-label={`تقييم الأسعار ${i} نجوم`}
+            onClick={() => setPriceRating(i)}
+            className="p-0.5"
+          >
+            <Star
+              className={`size-5 ${i <= priceRating ? "fill-teal-400 text-teal-400" : "text-muted-foreground"}`}
             />
           </button>
         ))}
